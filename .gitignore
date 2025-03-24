@@ -1,0 +1,48 @@
+# Created by https://www.toptal.com/developers/gitignore/api/go,intellij
+# Edit at https://www.toptal.com/developers/gitignore?templates=go,intellij
+
+### Go ###
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Dependency directories (uncomment to include)
+# vendor/
+
+# Generated files
+dist/
+*.prof
+
+### IDEs ###
+
+# IntelliJ IDEA
+.idea/
+
+# Visual Studio Code
+.vscode/
+
+# Environment variable files
+.env
+
+# Other temporary files
+*.tmp
+*.log
+*.swp
+*.swo
+.DS_Store
+
+### Configuration files ###
+*.toml
