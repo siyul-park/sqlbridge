@@ -3,6 +3,7 @@ package driver
 import (
 	"database/sql/driver"
 	"fmt"
+
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/siyul-park/sqlbridge/task"
 	"github.com/siyul-park/sqlbridge/vm"

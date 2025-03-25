@@ -3,6 +3,7 @@ package vm
 import (
 	"context"
 	"database/sql/driver"
+
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/siyul-park/sqlbridge/task"
 	"github.com/xwb1989/sqlparser"

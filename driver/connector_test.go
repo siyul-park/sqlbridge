@@ -2,11 +2,12 @@ package driver
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/go-faker/faker/v4"
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 func TestConnector_Connect(t *testing.T) {

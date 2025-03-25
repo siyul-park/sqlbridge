@@ -3,8 +3,9 @@ package task
 import (
 	"database/sql/driver"
 	"errors"
-	"github.com/xwb1989/sqlparser"
 	"sync"
+
+	"github.com/xwb1989/sqlparser"
 )
 
 type Registry struct {

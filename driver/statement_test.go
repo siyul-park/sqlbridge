@@ -2,10 +2,11 @@ package driver
 
 import (
 	"database/sql/driver"
+	"testing"
+
 	"github.com/go-faker/faker/v4"
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestStatement_NumInput(t *testing.T) {

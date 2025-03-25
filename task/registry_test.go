@@ -2,9 +2,10 @@ package task
 
 import (
 	"database/sql/driver"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"github.com/xwb1989/sqlparser"
-	"testing"
 )
 
 func TestRegistry_AddBuilder(t *testing.T) {

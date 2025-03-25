@@ -4,11 +4,12 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
-	"github.com/siyul-park/sqlbridge/vm"
-	"github.com/xwb1989/sqlparser"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/siyul-park/sqlbridge/vm"
+	"github.com/xwb1989/sqlparser"
 )
 
 type Statement struct {

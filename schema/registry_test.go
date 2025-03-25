@@ -1,9 +1,10 @@
 package schema
 
 import (
+	"testing"
+
 	"github.com/go-faker/faker/v4"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestRegistry_AddSchema(t *testing.T) {
