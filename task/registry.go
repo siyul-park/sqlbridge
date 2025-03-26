@@ -49,8 +49,8 @@ func (r *Registry) Build(node sqlparser.SQLNode) (Task, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	for _, builder := range r.builders {
-		task, err := builder.Build(node)
+	for i := len(r.builders) - 1; i >= 0; i-- {
+		task, err := r.builders[i].Build(node)
 		if err != nil {
 			if errors.Is(err, driver.ErrSkip) {
 				continue
