@@ -10,12 +10,62 @@ import (
 func TestPartition(t *testing.T) {
 	tests := []struct {
 		node   sqlparser.SQLNode
-		expect map[sqlparser.TableIdent]sqlparser.SQLNode
+		expect map[sqlparser.TableName]sqlparser.SQLNode
 	}{
 		{
 			node: &sqlparser.Select{SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}}, From: sqlparser.TableExprs{&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}}},
-			expect: map[sqlparser.TableIdent]sqlparser.SQLNode{
+			expect: map[sqlparser.TableName]sqlparser.SQLNode{
 				{}: &sqlparser.Select{SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}}, From: sqlparser.TableExprs{&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}}},
+			},
+		},
+		{
+			node: sqlparser.SelectExprs{
+				&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}},
+				&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("bar"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}},
+			},
+			expect: map[sqlparser.TableName]sqlparser.SQLNode{
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: sqlparser.SelectExprs{&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}}},
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}: sqlparser.SelectExprs{&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("bar"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}}},
+			},
+		},
+		{
+			node: &sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}},
+			expect: map[sqlparser.TableName]sqlparser.SQLNode{
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: &sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}},
+			},
+		},
+		{
+			node: sqlparser.TableExprs{
+				&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}, As: sqlparser.NewTableIdent("t1")},
+				&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}, As: sqlparser.NewTableIdent("t2")},
+			},
+			expect: map[sqlparser.TableName]sqlparser.SQLNode{
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: sqlparser.TableExprs{&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}, As: sqlparser.NewTableIdent("t1")}},
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}: sqlparser.TableExprs{&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}, As: sqlparser.NewTableIdent("t2")}},
+			},
+		},
+		{
+			node: &sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}, As: sqlparser.NewTableIdent("t1")},
+			expect: map[sqlparser.TableName]sqlparser.SQLNode{
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: &sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}, As: sqlparser.NewTableIdent("t1")},
+			},
+		},
+		{
+			node: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")},
+			expect: map[sqlparser.TableName]sqlparser.SQLNode{
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")},
+			},
+		},
+		{
+			node: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+			expect: map[sqlparser.TableName]sqlparser.SQLNode{
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+			},
+		},
+		{
+			node: sqlparser.NewTableIdent("t1"),
+			expect: map[sqlparser.TableName]sqlparser.SQLNode{
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: sqlparser.NewTableIdent("t1"),
 			},
 		},
 	}

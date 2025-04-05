@@ -2,11 +2,12 @@ package task
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/stretchr/testify/require"
 	"github.com/xwb1989/sqlparser"
-	"testing"
-	"time"
 )
 
 func TestTableBuilder_Build(t *testing.T) {
@@ -23,8 +24,13 @@ func TestTableBuilder_Build(t *testing.T) {
 	}{
 		{
 			node:   sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")},
-			value:  schema.New(map[string]schema.Table{"t1": schema.NewTable(nil)}),
-			expect: schema.NewTable(nil),
+			value:  schema.New(map[string]schema.Table{"t1": nil}),
+			expect: nil,
+		},
+		{
+			node:   sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")},
+			value:  schema.New(map[string]schema.Table{"t1": nil}),
+			expect: nil,
 		},
 	}
 

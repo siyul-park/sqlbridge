@@ -19,7 +19,7 @@ var _ driver.DriverContext = (*Driver)(nil)
 
 func New() *Driver {
 	return &Driver{
-		tasks:   task.NewRegistry(),
+		tasks:   task.DefaultRegistry,
 		schemas: schema.NewRegistry(),
 	}
 }

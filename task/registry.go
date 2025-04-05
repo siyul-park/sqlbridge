@@ -13,7 +13,15 @@ type Registry struct {
 	mu       sync.RWMutex
 }
 
+var DefaultRegistry = NewRegistry()
+
 var _ Builder = (*Registry)(nil)
+
+func init() {
+	DefaultRegistry.AddBuilder(NewSelectTask(DefaultRegistry))
+	DefaultRegistry.AddBuilder(NewTableBuilder(DefaultRegistry))
+	DefaultRegistry.AddBuilder(NewExpressionBuilder(DefaultRegistry))
+}
 
 func NewRegistry() *Registry {
 	return &Registry{}

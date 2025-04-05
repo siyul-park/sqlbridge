@@ -3,11 +3,12 @@ package task
 import (
 	"context"
 	"database/sql/driver"
+	"testing"
+	"time"
+
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/stretchr/testify/require"
 	"github.com/xwb1989/sqlparser"
-	"testing"
-	"time"
 )
 
 func TestSelectBuilder_Build(t *testing.T) {
@@ -17,6 +18,7 @@ func TestSelectBuilder_Build(t *testing.T) {
 	registry := NewRegistry()
 	registry.AddBuilder(NewSelectTask(registry))
 	registry.AddBuilder(NewTableBuilder(registry))
+	registry.AddBuilder(NewExpressionBuilder(registry))
 
 	tests := []struct {
 		node   sqlparser.SQLNode
@@ -25,18 +27,22 @@ func TestSelectBuilder_Build(t *testing.T) {
 	}{
 		{
 			node: &sqlparser.Select{
-				SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
-				From:        sqlparser.TableExprs{&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}},
+				SelectExprs: sqlparser.SelectExprs{&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo")}}},
+				From: sqlparser.TableExprs{
+					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}, As: sqlparser.NewTableIdent("t1")},
+				},
+				Where: &sqlparser.Where{
+					Type: sqlparser.WhereStr,
+					Expr: &sqlparser.ComparisonExpr{Left: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo")}, Operator: sqlparser.EqualStr, Right: sqlparser.NewStrVal([]byte("bar"))},
+				},
 			},
-			value:  schema.New(map[string]schema.Table{"t1": schema.NewTable([]map[string]driver.Value{{"foo": "bar"}})}),
-			expect: schema.NewRows([]map[string]driver.Value{{"foo": "bar"}}),
+			value:  schema.New(map[string]schema.Table{"t1": schema.NewInlineTable([][]string{{"foo"}}, [][]driver.Value{{"bar"}})}),
+			expect: schema.NewInlineRows([][]string{{"foo"}}, [][]driver.Value{{"bar"}}),
 		},
 	}
 
 	for _, test := range tests {
-		buf := sqlparser.NewTrackedBuffer(nil)
-		test.node.Format(buf)
-		t.Run(buf.String(), func(t *testing.T) {
+		t.Run(sqlparser.String(test.node), func(t *testing.T) {
 			task, err := registry.Build(test.node)
 			require.NoError(t, err)
 

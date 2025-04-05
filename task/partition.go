@@ -4,8 +4,8 @@ import (
 	"github.com/xwb1989/sqlparser"
 )
 
-func Partition[T sqlparser.SQLNode](node T) map[sqlparser.TableIdent]T {
-	part := map[sqlparser.TableIdent]T{}
+func Partition[T sqlparser.SQLNode](node T) map[sqlparser.TableName]T {
+	part := map[sqlparser.TableName]T{}
 	for tbl, node := range partition(node) {
 		n, _ := node.(T)
 		part[tbl] = n
@@ -13,28 +13,32 @@ func Partition[T sqlparser.SQLNode](node T) map[sqlparser.TableIdent]T {
 	return part
 }
 
-func partition(node sqlparser.SQLNode) map[sqlparser.TableIdent]sqlparser.SQLNode {
+func partition(node sqlparser.SQLNode) map[sqlparser.TableName]sqlparser.SQLNode {
 	switch node := node.(type) {
 	case *sqlparser.Union:
 	case *sqlparser.Select:
-		columns := Partition(node.SelectExprs)
+		projects := Partition(node.SelectExprs)
 		froms := Partition(node.From)
 		wheres := Partition(node.Where)
 		groups := Partition(node.GroupBy)
 		havings := Partition(node.Having)
 		orders := Partition(node.OrderBy)
 
-		parts := map[sqlparser.TableIdent]sqlparser.SQLNode{}
+		parts := map[sqlparser.TableName]sqlparser.SQLNode{}
 		for tbl := range froms {
-			column := columns[tbl]
+			project := projects[tbl]
 			from := froms[tbl]
 			where := wheres[tbl]
 			group := groups[tbl]
 			having := havings[tbl]
 			order := orders[tbl]
 
-			if column == nil {
-				column = sqlparser.SelectExprs{&sqlparser.StarExpr{}}
+			if project == nil {
+				if len(projects) == 0 {
+					project = node.SelectExprs
+				} else {
+					project = sqlparser.SelectExprs{&sqlparser.StarExpr{TableName: tbl}}
+				}
 			}
 
 			parts[tbl] = &sqlparser.Select{
@@ -42,7 +46,7 @@ func partition(node sqlparser.SQLNode) map[sqlparser.TableIdent]sqlparser.SQLNod
 				Comments:    node.Comments,
 				Distinct:    node.Distinct,
 				Hints:       node.Hints,
-				SelectExprs: column,
+				SelectExprs: project,
 				From:        from,
 				Where:       where,
 				GroupBy:     group,
@@ -79,7 +83,7 @@ func partition(node sqlparser.SQLNode) map[sqlparser.TableIdent]sqlparser.SQLNod
 	case *sqlparser.VindexSpec:
 	case *sqlparser.VindexParam:
 	case sqlparser.SelectExprs:
-		parts := map[sqlparser.TableIdent]sqlparser.SQLNode{}
+		parts := map[sqlparser.TableName]sqlparser.SQLNode{}
 		for _, expr := range node {
 			for tbl, sub := range Partition(expr) {
 				if list, ok := parts[tbl].(sqlparser.SelectExprs); ok {
@@ -92,11 +96,16 @@ func partition(node sqlparser.SQLNode) map[sqlparser.TableIdent]sqlparser.SQLNod
 		return parts
 	case *sqlparser.StarExpr:
 	case *sqlparser.AliasedExpr:
+		parts := map[sqlparser.TableName]sqlparser.SQLNode{}
+		for tbl, sub := range Partition(node.Expr) {
+			parts[tbl] = &sqlparser.AliasedExpr{Expr: sub, As: node.As}
+		}
+		return parts
 	case *sqlparser.Nextval:
 	case sqlparser.Columns:
 	case sqlparser.Partitions:
 	case sqlparser.TableExprs:
-		parts := map[sqlparser.TableIdent]sqlparser.SQLNode{}
+		parts := map[sqlparser.TableName]sqlparser.SQLNode{}
 		for _, expr := range node {
 			for tbl, sub := range Partition(expr) {
 				if list, ok := parts[tbl].(sqlparser.TableExprs); ok {
@@ -108,11 +117,11 @@ func partition(node sqlparser.SQLNode) map[sqlparser.TableIdent]sqlparser.SQLNod
 		}
 		return parts
 	case *sqlparser.AliasedTableExpr:
-		return map[sqlparser.TableIdent]sqlparser.SQLNode{node.As: node}
+		return map[sqlparser.TableName]sqlparser.SQLNode{sqlparser.TableName{Name: node.As}: node}
 	case *sqlparser.ParenTableExpr:
 	case *sqlparser.JoinTableExpr:
 	case sqlparser.TableName:
-		return map[sqlparser.TableIdent]sqlparser.SQLNode{node.Name: node}
+		return map[sqlparser.TableName]sqlparser.SQLNode{node: node}
 	case *sqlparser.Subquery:
 	case sqlparser.TableNames:
 	case *sqlparser.IndexHints:
@@ -129,7 +138,7 @@ func partition(node sqlparser.SQLNode) map[sqlparser.TableIdent]sqlparser.SQLNod
 	case *sqlparser.NullVal:
 	case sqlparser.BoolVal:
 	case *sqlparser.ColName:
-		return map[sqlparser.TableIdent]sqlparser.SQLNode{node.Qualifier.Name: node}
+		return map[sqlparser.TableName]sqlparser.SQLNode{node.Qualifier: &sqlparser.ColName{Name: node.Name}}
 	case sqlparser.ValTuple:
 	case sqlparser.ListArg:
 	case *sqlparser.BinaryExpr:
@@ -159,7 +168,7 @@ func partition(node sqlparser.SQLNode) map[sqlparser.TableIdent]sqlparser.SQLNod
 	case sqlparser.OnDup:
 	case sqlparser.ColIdent:
 	case sqlparser.TableIdent:
-		return map[sqlparser.TableIdent]sqlparser.SQLNode{node: node}
+		return map[sqlparser.TableName]sqlparser.SQLNode{sqlparser.TableName{Name: node}: node}
 	}
 	return nil
 }
