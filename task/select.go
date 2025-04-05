@@ -180,39 +180,15 @@ func NewSelectBuilder(builder Builder) Builder {
 						return false
 					}
 
-					switch li := vi.(type) {
-					case int64:
-						if rj, ok := vj.(int64); ok {
-							if li == rj {
-								return false
-							}
-							if n.Direction == sqlparser.DescScr {
-								return li > rj
-							}
-							return li < rj
-						}
-					case float64:
-						if rj, ok := vj.(float64); ok {
-							if li == rj {
-								return false
-							}
-							if n.Direction == sqlparser.DescScr {
-								return li > rj
-							}
-							return li < rj
-						}
-					case string:
-						if rj, ok := vj.(string); ok {
-							if li == rj {
-								return false
-							}
-							if n.Direction == sqlparser.DescScr {
-								return li > rj
-							}
-							return li < rj
-						}
+					cmp, err := compare(vi, vj)
+					if err != nil {
+						return false
 					}
-					return false
+
+					if n.Direction == sqlparser.DescScr {
+						return cmp > 0
+					}
+					return cmp < 0
 				})
 				return schema.FormatRows(records), nil
 			}), nil
@@ -379,8 +355,7 @@ func NewSelectBuilder(builder Builder) Builder {
 			return Run(func(ctx context.Context, value any) (any, error) {
 				for _, task := range tasks {
 					var err error
-					value, err = task.Run(ctx, value)
-					if err != nil {
+					if value, err = task.Run(ctx, value); err != nil {
 						return nil, err
 					}
 				}

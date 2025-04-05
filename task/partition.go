@@ -34,11 +34,7 @@ func partition(node sqlparser.SQLNode) map[sqlparser.TableName]sqlparser.SQLNode
 			order := orders[tbl]
 
 			if project == nil {
-				if len(projects) == 0 {
-					project = n.SelectExprs
-				} else {
-					project = sqlparser.SelectExprs{&sqlparser.StarExpr{TableName: tbl}}
-				}
+				project = sqlparser.SelectExprs{&sqlparser.StarExpr{}}
 			}
 
 			parts[tbl] = &sqlparser.Select{
