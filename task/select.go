@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser"
+	"reflect"
 	"sort"
 )
 
@@ -315,6 +316,44 @@ func NewSelectTask(builder Builder) Builder {
 					return nil, err
 				}
 				tasks = append(tasks, project)
+			}
+			if n.Distinct == sqlparser.DistinctStr {
+				tasks = append(tasks, Run(func(ctx context.Context, value any) (any, error) {
+					rows, ok := value.(driver.Rows)
+					if !ok {
+						return nil, fmt.Errorf("sqlbridge: unsupported types %T", value)
+					}
+
+					records, err := schema.ScanRows(rows)
+					if err != nil {
+						return nil, err
+					}
+
+					for i := 0; i < len(records); i++ {
+						duplicate := false
+						for j := i + 1; j < len(records); j++ {
+							if len(records[i]) != len(records[j]) {
+								continue
+							}
+							match := true
+							for k, v := range records[i] {
+								if !reflect.DeepEqual(v, records[j][k]) {
+									match = false
+									break
+								}
+							}
+							if match {
+								duplicate = true
+								break
+							}
+						}
+						if duplicate {
+							records = append(records[:i], records[i+1:]...)
+							i--
+						}
+					}
+					return schema.FormatRows(records), nil
+				}))
 			}
 
 			return Run(func(ctx context.Context, value any) (any, error) {
