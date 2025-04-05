@@ -6,7 +6,6 @@ import (
 	"database/sql/driver"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"reflect"
 	"strconv"
@@ -127,8 +126,9 @@ func NewExpressionBuilder(builder Builder) Builder {
 					return cmp <= 0, nil
 				case sqlparser.GreaterEqualStr:
 					return cmp >= 0, nil
+				default:
+					return nil, NewErrUnsupportedValue(n.Operator)
 				}
-				return nil, fmt.Errorf("sqlbridge: unsupported operator %q", n.Operator)
 			}), nil
 
 		case *sqlparser.RangeCond:
@@ -206,7 +206,7 @@ func NewExpressionBuilder(builder Builder) Builder {
 					b, ok := v.(bool)
 					return !ok || b, nil
 				default:
-					return nil, fmt.Errorf("sqlbridge: unsupported operator %q", n.Operator)
+					return nil, NewErrUnsupportedValue(n.Operator)
 				}
 			}), nil
 
@@ -231,7 +231,7 @@ func NewExpressionBuilder(builder Builder) Builder {
 						return true, nil
 					}
 				}
-				return 0, fmt.Errorf("sqlbridge: unsupported types %T", val)
+				return 0, NewErrUnsupportedType(val)
 			}), nil
 
 		case *sqlparser.SQLVal:
@@ -297,7 +297,7 @@ func NewExpressionBuilder(builder Builder) Builder {
 			return Run(func(ctx context.Context, value any) (any, error) {
 				record, ok := value.(map[*sqlparser.ColName]driver.Value)
 				if !ok {
-					return nil, fmt.Errorf("sqlbridge: unsupported types %T", value)
+					return nil, NewErrUnsupportedType(value)
 				}
 				for k, v := range record {
 					if k.Name.Equal(n.Name) && (k.Qualifier.IsEmpty() || k.Qualifier == n.Qualifier) {
@@ -395,5 +395,5 @@ func compare(a, b any) (int, error) {
 		}
 	}
 
-	return 0, fmt.Errorf("sqlbridge: unsupported compare types %T and %T", a, b)
+	return 0, NewErrUnsupportedType(a)
 }

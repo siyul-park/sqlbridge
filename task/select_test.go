@@ -12,12 +12,12 @@ import (
 	"github.com/xwb1989/sqlparser"
 )
 
-func TestSelectBuilder_Build(t *testing.T) {
+func TestSelectTask_Run(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
 	defer cancel()
 
 	registry := NewRegistry()
-	registry.AddBuilder(NewSelectTask(registry))
+	registry.AddBuilder(NewSelectBuilder(registry))
 	registry.AddBuilder(NewTableBuilder(registry))
 	registry.AddBuilder(NewExpressionBuilder(registry))
 

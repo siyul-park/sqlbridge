@@ -3,7 +3,6 @@ package task
 import (
 	"context"
 	"database/sql/driver"
-	"fmt"
 	"strings"
 
 	"github.com/siyul-park/sqlbridge/schema"
@@ -45,7 +44,7 @@ func NewTableBuilder(builder Builder) Builder {
 						case driver.Rows:
 							srcs = append(srcs, v)
 						default:
-							return nil, fmt.Errorf("sqlbridge: unsupported types %T", val)
+							return nil, NewErrUnsupportedType(val)
 						}
 					}
 
@@ -138,12 +137,12 @@ func NewTableBuilder(builder Builder) Builder {
 					return schema.Query(func(ctx context.Context, node sqlparser.SQLNode) (driver.Rows, error) {
 						n, ok := node.(*sqlparser.Select)
 						if !ok {
-							return nil, fmt.Errorf("unexpected node type: %T", node)
+							return nil, NewErrUnsupportedType(node)
 						}
 
 						parts := Partition(n)
 						if len(parts) == 0 {
-							return nil, fmt.Errorf("no partition found for table %s", sqlparser.String(n))
+							return nil, NewErrUnsupportedValue(n)
 						}
 
 						rows, err := v.Query(ctx, parts[qualifier])
@@ -156,7 +155,7 @@ func NewTableBuilder(builder Builder) Builder {
 				case driver.Rows:
 					return alias(v, qualifier), nil
 				default:
-					return nil, fmt.Errorf("sqlbridge: unsupported types %T", val)
+					return nil, NewErrUnsupportedType(val)
 				}
 			}), nil
 
@@ -170,11 +169,11 @@ func NewTableBuilder(builder Builder) Builder {
 			return Run(func(ctx context.Context, value any) (any, error) {
 				s, ok := value.(schema.Schema)
 				if !ok {
-					return nil, driver.ErrSkip
+					return nil, NewErrUnsupportedType(value)
 				}
 				tbl, ok := s.Table(n.Name.CompliantName())
 				if !ok {
-					return nil, driver.ErrSkip
+					return nil, NewErrNotFound(sqlparser.String(n))
 				}
 				return tbl, nil
 			}), nil
