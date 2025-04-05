@@ -8,9 +8,16 @@ import (
 )
 
 func TestPartition(t *testing.T) {
-	var tests []struct {
+	tests := []struct {
 		node   sqlparser.SQLNode
-		expect map[sqlparser.TableName]sqlparser.SQLNode
+		expect map[sqlparser.TableIdent]sqlparser.SQLNode
+	}{
+		{
+			node: &sqlparser.Select{SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}}, From: sqlparser.TableExprs{&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}}},
+			expect: map[sqlparser.TableIdent]sqlparser.SQLNode{
+				{}: &sqlparser.Select{SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}}, From: sqlparser.TableExprs{&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}}},
+			},
+		},
 	}
 
 	for _, test := range tests {
