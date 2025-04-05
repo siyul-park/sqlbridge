@@ -41,12 +41,6 @@ func NewTableBuilder(builder Builder) Builder {
 								return nil, err
 							}
 							srcs = append(srcs, rows)
-						case schema.Table:
-							rows, err := v.Rows(ctx)
-							if err != nil {
-								return nil, err
-							}
-							srcs = append(srcs, rows)
 						case driver.Rows:
 							srcs = append(srcs, v)
 						default:
@@ -158,12 +152,6 @@ func NewTableBuilder(builder Builder) Builder {
 
 						return alias(rows, qualifier), nil
 					}), nil
-				case schema.Table:
-					rows, err := v.Rows(ctx)
-					if err != nil {
-						return nil, err
-					}
-					return alias(rows, qualifier), nil
 				case driver.Rows:
 					return alias(v, qualifier), nil
 				default:

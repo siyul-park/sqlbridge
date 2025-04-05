@@ -5,10 +5,8 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"github.com/siyul-park/sqlbridge/schema"
-	"sort"
-	"strings"
-
 	"github.com/xwb1989/sqlparser"
+	"sort"
 )
 
 func NewSelectTask(builder Builder) Builder {
@@ -25,9 +23,14 @@ func NewSelectTask(builder Builder) Builder {
 			}
 
 			return Run(func(ctx context.Context, value any) (any, error) {
-				records, ok := value.([]map[*sqlparser.ColName]driver.Value)
+				rows, ok := value.(driver.Rows)
 				if !ok {
 					return nil, fmt.Errorf("sqlbridge: unsupported types %T", value)
+				}
+
+				records, err := schema.ScanRows(rows)
+				if err != nil {
+					return nil, err
 				}
 
 				var columns [][]string
@@ -54,6 +57,7 @@ func NewSelectTask(builder Builder) Builder {
 				}
 				return schema.NewInlineRows(columns, values), nil
 			}), nil
+
 		case *sqlparser.StarExpr:
 			return Run(func(ctx context.Context, value any) (any, error) {
 				record, ok := value.(map[*sqlparser.ColName]driver.Value)
@@ -68,6 +72,7 @@ func NewSelectTask(builder Builder) Builder {
 			if err != nil {
 				return nil, err
 			}
+
 			return Run(func(ctx context.Context, value any) (any, error) {
 				record, ok := value.(map[*sqlparser.ColName]driver.Value)
 				if !ok {
@@ -94,11 +99,18 @@ func NewSelectTask(builder Builder) Builder {
 			if err != nil {
 				return nil, err
 			}
+
 			return Run(func(ctx context.Context, value any) (any, error) {
-				records, ok := value.([]map[*sqlparser.ColName]driver.Value)
+				rows, ok := value.(driver.Rows)
 				if !ok {
 					return nil, fmt.Errorf("sqlbridge: unsupported types %T", value)
 				}
+
+				records, err := schema.ScanRows(rows)
+				if err != nil {
+					return nil, err
+				}
+
 				for i := 0; i < len(records); i++ {
 					val, err := task.Run(ctx, records[i])
 					if err != nil {
@@ -109,7 +121,7 @@ func NewSelectTask(builder Builder) Builder {
 						i--
 					}
 				}
-				return records, nil
+				return schema.FormatRows(records), nil
 			}), nil
 
 		case sqlparser.OrderBy:
@@ -121,21 +133,23 @@ func NewSelectTask(builder Builder) Builder {
 				}
 				tasks = append(tasks, task)
 			}
+
 			return Run(func(ctx context.Context, value any) (any, error) {
-				records, ok := value.([]map[*sqlparser.ColName]driver.Value)
+				rows, ok := value.(driver.Rows)
 				if !ok {
 					return nil, fmt.Errorf("sqlbridge: unsupported types %T", value)
 				}
+
 				for _, task := range tasks {
-					val, err := task.Run(ctx, records)
+					val, err := task.Run(ctx, rows)
 					if err != nil {
 						return nil, err
 					}
-					if records, ok = val.([]map[*sqlparser.ColName]driver.Value); !ok {
+					if rows, ok = val.(driver.Rows); !ok {
 						return nil, fmt.Errorf("sqlbridge: unsupported types %T", val)
 					}
 				}
-				return records, nil
+				return rows, nil
 			}), nil
 
 		case *sqlparser.Order:
@@ -145,10 +159,16 @@ func NewSelectTask(builder Builder) Builder {
 			}
 
 			return Run(func(ctx context.Context, value any) (any, error) {
-				records, ok := value.([]map[*sqlparser.ColName]driver.Value)
+				rows, ok := value.(driver.Rows)
 				if !ok {
 					return nil, fmt.Errorf("sqlbridge: unsupported types %T", value)
 				}
+
+				records, err := schema.ScanRows(rows)
+				if err != nil {
+					return nil, err
+				}
+
 				sort.SliceStable(records, func(i, j int) bool {
 					vi, err := task.Run(ctx, records[i])
 					if err != nil {
@@ -193,7 +213,7 @@ func NewSelectTask(builder Builder) Builder {
 					}
 					return false
 				})
-				return records, nil
+				return schema.FormatRows(records), nil
 			}), nil
 
 		case *sqlparser.Limit:
@@ -216,9 +236,14 @@ func NewSelectTask(builder Builder) Builder {
 			}
 
 			return Run(func(ctx context.Context, value any) (any, error) {
-				records, ok := value.([]map[*sqlparser.ColName]driver.Value)
+				rows, ok := value.(driver.Rows)
 				if !ok {
 					return nil, fmt.Errorf("sqlbridge: unsupported types %T", value)
+				}
+
+				records, err := schema.ScanRows(rows)
+				if err != nil {
+					return nil, err
 				}
 
 				off := 0
@@ -253,15 +278,10 @@ func NewSelectTask(builder Builder) Builder {
 					records = nil
 				}
 
-				return records, nil
+				return schema.FormatRows(records), nil
 			}), nil
 
 		case *sqlparser.Select:
-			project, err := builder.Build(n.SelectExprs)
-			if err != nil {
-				return nil, err
-			}
-
 			from, err := builder.Build(n.From)
 			if err != nil {
 				return nil, err
@@ -275,7 +295,6 @@ func NewSelectTask(builder Builder) Builder {
 				}
 				tasks = append(tasks, where)
 			}
-
 			if len(n.OrderBy) > 0 {
 				orderBy, err := builder.Build(n.OrderBy)
 				if err != nil {
@@ -283,13 +302,19 @@ func NewSelectTask(builder Builder) Builder {
 				}
 				tasks = append(tasks, orderBy)
 			}
-
 			if n.Limit != nil {
 				limit, err := builder.Build(n.Limit)
 				if err != nil {
 					return nil, err
 				}
 				tasks = append(tasks, limit)
+			}
+			if len(n.SelectExprs) > 0 {
+				project, err := builder.Build(n.SelectExprs)
+				if err != nil {
+					return nil, err
+				}
+				tasks = append(tasks, project)
 			}
 
 			return Run(func(ctx context.Context, value any) (any, error) {
@@ -307,47 +332,21 @@ func NewSelectTask(builder Builder) Builder {
 					if err != nil {
 						return nil, err
 					}
-				case schema.Table:
-					rows, err = v.Rows(ctx)
-					if err != nil {
-						return nil, err
-					}
 				default:
 					return nil, fmt.Errorf("sqlbridge: unsupported types %T", src)
 				}
 
-				var records []map[*sqlparser.ColName]driver.Value
-				for {
-					cols := rows.Columns()
-					vals := make([]driver.Value, len(cols))
-					if err := rows.Next(vals); err != nil {
-						break
-					}
-
-					record := make(map[*sqlparser.ColName]driver.Value)
-					for i, col := range cols {
-						parts := strings.Split(col, ".")
-						name := &sqlparser.ColName{Name: sqlparser.NewColIdent(parts[len(parts)-1])}
-						if len(parts) > 1 {
-							name.Qualifier = sqlparser.TableName{Qualifier: sqlparser.NewTableIdent(parts[0])}
-						}
-						record[name] = vals[i]
-					}
-					records = append(records, record)
-				}
-
 				for _, task := range tasks {
-					val, err := task.Run(ctx, records)
+					val, err := task.Run(ctx, rows)
 					if err != nil {
 						return nil, err
 					}
 					var ok bool
-					if records, ok = val.([]map[*sqlparser.ColName]driver.Value); !ok {
+					if rows, ok = val.(driver.Rows); !ok {
 						return nil, fmt.Errorf("sqlbridge: unsupported types %T", val)
 					}
 				}
-
-				return project.Run(ctx, records)
+				return rows, nil
 			}), nil
 		}
 		return nil, driver.ErrSkip

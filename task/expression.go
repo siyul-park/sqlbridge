@@ -297,7 +297,7 @@ func NewExpressionBuilder(builder Builder) Builder {
 			return Run(func(ctx context.Context, value any) (any, error) {
 				record, ok := value.(map[*sqlparser.ColName]driver.Value)
 				if !ok {
-					return nil, driver.ErrSkip
+					return nil, fmt.Errorf("sqlbridge: unsupported types %T", value)
 				}
 				for k, v := range record {
 					if k.Name.Equal(n.Name) && (k.Qualifier.IsEmpty() || k.Qualifier == n.Qualifier) {

@@ -3,10 +3,11 @@ package schema
 import (
 	"context"
 	"database/sql/driver"
+	"github.com/xwb1989/sqlparser"
 )
 
 type Table interface {
-	Rows(ctx context.Context) (driver.Rows, error)
+	Queryer
 }
 
 type inlineTable struct {
@@ -20,6 +21,6 @@ func NewInlineTable(columns [][]string, rows [][]driver.Value) Table {
 	return &inlineTable{columns: columns, values: rows}
 }
 
-func (t *inlineTable) Rows(_ context.Context) (driver.Rows, error) {
+func (t *inlineTable) Query(_ context.Context, _ sqlparser.SQLNode) (driver.Rows, error) {
 	return NewInlineRows(t.columns, t.values), nil
 }
