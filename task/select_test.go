@@ -3,10 +3,10 @@ package task
 import (
 	"context"
 	"database/sql/driver"
+	"github.com/siyul-park/sqlbridge/schema"
 	"testing"
 	"time"
 
-	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/stretchr/testify/require"
 	"github.com/xwb1989/sqlparser"
 )
@@ -36,6 +36,30 @@ func TestSelectBuilder_Build(t *testing.T) {
 			},
 			value:  schema.New(map[string]schema.Table{"t1": schema.NewInlineTable([][]string{{"foo"}}, [][]driver.Value{{"bar"}})}),
 			expect: schema.NewInlineRows([][]string{{"foo"}}, [][]driver.Value{{"bar"}}),
+		},
+		{
+			node: &sqlparser.Select{
+				SelectExprs: sqlparser.SelectExprs{
+					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo")}},
+					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("bar")}},
+				},
+				From: sqlparser.TableExprs{
+					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
+				},
+				Where: &sqlparser.Where{
+					Type: sqlparser.WhereStr,
+					Expr: &sqlparser.AndExpr{
+						Left:  &sqlparser.ComparisonExpr{Left: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo")}, Operator: sqlparser.EqualStr, Right: sqlparser.NewStrVal([]byte("foo"))},
+						Right: &sqlparser.ComparisonExpr{Left: &sqlparser.ColName{Name: sqlparser.NewColIdent("bar")}, Operator: sqlparser.EqualStr, Right: sqlparser.NewStrVal([]byte("bar"))},
+					},
+				},
+			},
+			value: schema.New(map[string]schema.Table{
+				"t1": schema.NewInlineTable([][]string{{"foo"}}, [][]driver.Value{{"foo"}}),
+				"t2": schema.NewInlineTable([][]string{{"bar"}}, [][]driver.Value{{"bar"}}),
+			}),
+			expect: schema.NewInlineRows([][]string{{"foo", "bar"}}, [][]driver.Value{{"foo", "bar"}}),
 		},
 	}
 

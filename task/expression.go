@@ -300,7 +300,7 @@ func NewExpressionBuilder(builder Builder) Builder {
 					return nil, driver.ErrSkip
 				}
 				for k, v := range record {
-					if k.Equal(n) {
+					if k.Name.Equal(n.Name) && (k.Qualifier.IsEmpty() || k.Qualifier == n.Qualifier) {
 						return v, nil
 					}
 				}

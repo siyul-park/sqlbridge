@@ -97,6 +97,9 @@ func NewTableBuilder(builder Builder) Builder {
 
 		case *sqlparser.AliasedTableExpr:
 			qualifier := sqlparser.TableName{Name: n.As}
+			if qualifier.Name.IsEmpty() {
+				qualifier.Name = sqlparser.NewTableIdent(sqlparser.String(n.Expr))
+			}
 
 			task, err := builder.Build(n.Expr)
 			if err != nil {
