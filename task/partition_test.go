@@ -15,7 +15,7 @@ func TestPartition(t *testing.T) {
 		{
 			node: &sqlparser.Select{SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}}, From: sqlparser.TableExprs{&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}}},
 			expect: map[sqlparser.TableName]sqlparser.SQLNode{
-				{}: &sqlparser.Select{SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}}, From: sqlparser.TableExprs{&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}}},
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: &sqlparser.Select{SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}}, From: sqlparser.TableExprs{&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}}},
 			},
 		},
 		{
@@ -24,30 +24,30 @@ func TestPartition(t *testing.T) {
 				&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("bar"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}},
 			},
 			expect: map[sqlparser.TableName]sqlparser.SQLNode{
-				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: sqlparser.SelectExprs{&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}}},
-				sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}: sqlparser.SelectExprs{&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("bar"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}}},
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: sqlparser.SelectExprs{&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo")}}},
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}: sqlparser.SelectExprs{&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("bar")}}},
 			},
 		},
 		{
 			node: &sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}},
 			expect: map[sqlparser.TableName]sqlparser.SQLNode{
-				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: &sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}},
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: &sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo")}},
 			},
 		},
 		{
 			node: sqlparser.TableExprs{
-				&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}, As: sqlparser.NewTableIdent("t1")},
-				&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}, As: sqlparser.NewTableIdent("t2")},
+				&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}, As: sqlparser.NewTableIdent("t3")},
+				&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}, As: sqlparser.NewTableIdent("t4")},
 			},
 			expect: map[sqlparser.TableName]sqlparser.SQLNode{
-				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: sqlparser.TableExprs{&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}, As: sqlparser.NewTableIdent("t1")}},
-				sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}: sqlparser.TableExprs{&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}, As: sqlparser.NewTableIdent("t2")}},
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t3")}: sqlparser.TableExprs{&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}},
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t4")}: sqlparser.TableExprs{&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}},
 			},
 		},
 		{
-			node: &sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}, As: sqlparser.NewTableIdent("t1")},
+			node: &sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}, As: sqlparser.NewTableIdent("t2")},
 			expect: map[sqlparser.TableName]sqlparser.SQLNode{
-				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: &sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}, As: sqlparser.NewTableIdent("t1")},
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}: &sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 			},
 		},
 		{
@@ -59,7 +59,7 @@ func TestPartition(t *testing.T) {
 		{
 			node: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 			expect: map[sqlparser.TableName]sqlparser.SQLNode{
-				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+				sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo")},
 			},
 		},
 		{
