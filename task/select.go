@@ -73,6 +73,7 @@ func NewSelectTask(builder Builder) Builder {
 				if !ok {
 					return nil, fmt.Errorf("sqlbridge: unsupported types %T", value)
 				}
+
 				var col string
 				if !n.As.IsEmpty() {
 					col = n.As.String()
@@ -120,7 +121,6 @@ func NewSelectTask(builder Builder) Builder {
 				}
 				tasks = append(tasks, task)
 			}
-
 			return Run(func(ctx context.Context, value any) (any, error) {
 				records, ok := value.([]map[*sqlparser.ColName]driver.Value)
 				if !ok {
