@@ -28,9 +28,7 @@ func TestSelectBuilder_Build(t *testing.T) {
 		{
 			node: &sqlparser.Select{
 				SelectExprs: sqlparser.SelectExprs{&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo")}}},
-				From: sqlparser.TableExprs{
-					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}, As: sqlparser.NewTableIdent("t1")},
-				},
+				From:        sqlparser.TableExprs{&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}},
 				Where: &sqlparser.Where{
 					Type: sqlparser.WhereStr,
 					Expr: &sqlparser.ComparisonExpr{Left: &sqlparser.ColName{Name: sqlparser.NewColIdent("foo")}, Operator: sqlparser.EqualStr, Right: sqlparser.NewStrVal([]byte("bar"))},
