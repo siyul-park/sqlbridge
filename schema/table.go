@@ -3,6 +3,7 @@ package schema
 import (
 	"context"
 	"database/sql/driver"
+
 	"github.com/xwb1989/sqlparser"
 )
 

@@ -3,9 +3,10 @@ package task
 import (
 	"context"
 	"database/sql/driver"
-	"github.com/siyul-park/sqlbridge/schema"
 	"testing"
 	"time"
+
+	"github.com/siyul-park/sqlbridge/schema"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xwb1989/sqlparser"

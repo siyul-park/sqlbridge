@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
-	"github.com/siyul-park/sqlbridge/schema"
-	"github.com/xwb1989/sqlparser"
 	"reflect"
 	"sort"
+
+	"github.com/siyul-park/sqlbridge/schema"
+	"github.com/xwb1989/sqlparser"
 )
 
 func NewSelectTask(builder Builder) Builder {

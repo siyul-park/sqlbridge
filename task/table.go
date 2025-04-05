@@ -4,9 +4,10 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"strings"
+
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser"
-	"strings"
 )
 
 func NewTableBuilder(builder Builder) Builder {

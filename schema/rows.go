@@ -2,9 +2,10 @@ package schema
 
 import (
 	"database/sql/driver"
-	"github.com/xwb1989/sqlparser"
 	"io"
 	"strings"
+
+	"github.com/xwb1989/sqlparser"
 )
 
 type inlineRows struct {
