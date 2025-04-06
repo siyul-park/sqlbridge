@@ -30,10 +30,7 @@ func TestPlanner_Plan(t *testing.T) {
 				},
 			},
 			plan: &ProjectPlan{
-				Input: &AliasPlan{
-					Input: &ScanPlan{Table: t1},
-					Alias: sqlparser.NewTableIdent("t1"),
-				},
+				Input: &AliasPlan{Input: &ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
 				Exprs: sqlparser.SelectExprs{
 					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
 				},
@@ -58,10 +55,7 @@ func TestPlanner_Plan(t *testing.T) {
 			},
 			plan: &ProjectPlan{
 				Input: &FilterPlan{
-					Input: &AliasPlan{
-						Input: &ScanPlan{Table: t1},
-						Alias: sqlparser.NewTableIdent("t1"),
-					},
+					Input: &AliasPlan{Input: &ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
 					Expr: &sqlparser.ComparisonExpr{
 						Operator: sqlparser.GreaterThanStr,
 						Left:     &sqlparser.ColName{Name: sqlparser.NewColIdent("age")},
@@ -76,14 +70,7 @@ func TestPlanner_Plan(t *testing.T) {
 		{
 			node: &sqlparser.Select{
 				SelectExprs: sqlparser.SelectExprs{
-					&sqlparser.AliasedExpr{
-						Expr: &sqlparser.FuncExpr{
-							Name: sqlparser.NewColIdent("COUNT"),
-							Exprs: sqlparser.SelectExprs{
-								&sqlparser.StarExpr{},
-							},
-						},
-					},
+					&sqlparser.AliasedExpr{Expr: &sqlparser.FuncExpr{Name: sqlparser.NewColIdent("COUNT"), Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}}}},
 					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("name")}},
 				},
 				From: sqlparser.TableExprs{
@@ -103,22 +90,12 @@ func TestPlanner_Plan(t *testing.T) {
 			},
 			plan: &FilterPlan{
 				Input: &GroupPlan{
-					Input: &AliasPlan{
-						Input: &ScanPlan{Table: t1},
-						Alias: sqlparser.NewTableIdent("t1"),
-					},
+					Input: &AliasPlan{Input: &ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
 					GroupExpr: sqlparser.GroupBy{
 						&sqlparser.ColName{Name: sqlparser.NewColIdent("name")},
 					},
 					SelectExprs: sqlparser.SelectExprs{
-						&sqlparser.AliasedExpr{
-							Expr: &sqlparser.FuncExpr{
-								Name: sqlparser.NewColIdent("COUNT"),
-								Exprs: sqlparser.SelectExprs{
-									&sqlparser.StarExpr{},
-								},
-							},
-						},
+						&sqlparser.AliasedExpr{Expr: &sqlparser.FuncExpr{Name: sqlparser.NewColIdent("COUNT"), Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}}}},
 						&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("name")}},
 					},
 				},
@@ -146,10 +123,7 @@ func TestPlanner_Plan(t *testing.T) {
 			},
 			plan: &OrderPlan{
 				Input: &ProjectPlan{
-					Input: &AliasPlan{
-						Input: &ScanPlan{Table: t1},
-						Alias: sqlparser.NewTableIdent("t1"),
-					},
+					Input: &AliasPlan{Input: &ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
 					Exprs: sqlparser.SelectExprs{
 						&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
 					},
@@ -173,10 +147,7 @@ func TestPlanner_Plan(t *testing.T) {
 			},
 			plan: &LimitPlan{
 				Input: &ProjectPlan{
-					Input: &AliasPlan{
-						Input: &ScanPlan{Table: t1},
-						Alias: sqlparser.NewTableIdent("t1"),
-					},
+					Input: &AliasPlan{Input: &ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
 					Exprs: sqlparser.SelectExprs{
 						&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
 					},

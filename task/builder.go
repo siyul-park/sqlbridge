@@ -26,6 +26,10 @@ func (b *Builder) Build(p plan.Plan) (Task, error) {
 		return b.buildFilterPlan(p)
 	case *plan.ProjectPlan:
 		return b.buildProjectPlan(p)
+	case *plan.OrderPlan:
+		return b.buildOrderPlan(p)
+	case *plan.LimitPlan:
+		return b.buildLimitPlan(p)
 	default:
 		return nil, driver.ErrSkip
 	}
@@ -73,4 +77,20 @@ func (b *Builder) buildProjectPlan(p *plan.ProjectPlan) (Task, error) {
 		return nil, err
 	}
 	return &ProjectTask{Input: input, Exprs: p.Exprs}, nil
+}
+
+func (b *Builder) buildOrderPlan(p *plan.OrderPlan) (Task, error) {
+	input, err := b.Build(p.Input)
+	if err != nil {
+		return nil, err
+	}
+	return &OrderTask{Input: input, Orders: p.Orders}, nil
+}
+
+func (b *Builder) buildLimitPlan(p *plan.LimitPlan) (Task, error) {
+	input, err := b.Build(p.Input)
+	if err != nil {
+		return nil, err
+	}
+	return &LimitTask{Input: input, Limit: p.Limit}, nil
 }

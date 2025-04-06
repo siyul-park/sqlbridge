@@ -170,6 +170,5 @@ func (vm *VM) evalColName(expr *sqlparser.ColName) (driver.Value, error) {
 			}
 		}
 	}
-
 	return nil, nil
 }

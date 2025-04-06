@@ -1,6 +1,9 @@
 package schema
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 type Catalog interface {
 	Table(name string) (Table, error)
@@ -8,6 +11,12 @@ type Catalog interface {
 
 type InMemoryCatalog struct {
 	tables map[string]Table
+}
+
+var ErrNotFound = errors.New("not found")
+
+func NewErrNotFound(key any) error {
+	return fmt.Errorf("%w: %v", ErrNotFound, key)
 }
 
 func NewInMemoryCatalog(tables map[string]Table) *InMemoryCatalog {
@@ -18,9 +27,9 @@ func NewInMemoryCatalog(tables map[string]Table) *InMemoryCatalog {
 }
 
 func (c *InMemoryCatalog) Table(name string) (Table, error) {
-	table, exists := c.tables[name]
-	if !exists {
-		return nil, fmt.Errorf("table '%s' not found in InMemoryCatalog. Ensure that the table name is correct or check if it has been registered properly", name)
+	table, ok := c.tables[name]
+	if !ok {
+		return nil, NewErrNotFound(name)
 	}
 	return table, nil
 }

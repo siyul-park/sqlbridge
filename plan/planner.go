@@ -225,7 +225,7 @@ func (p *Planner) planJoinTableExpr(n *sqlparser.JoinTableExpr) (Plan, error) {
 		plan.On = n.Condition.On
 	}
 	if n.Condition.Using != nil {
-		// TODO: handle USING condition
+		plan.Using = n.Condition.Using
 	}
 
 	return plan, nil

@@ -139,6 +139,32 @@ func TestTask_Run(t *testing.T) {
 			},
 			value: schema.NewInMemoryRows([][]string{{"id", "name"}}, [][]driver.Value{{1, "foo"}}),
 		},
+		{
+			plan: &plan.OrderPlan{
+				Input: &plan.AliasPlan{Input: &plan.ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
+				Orders: sqlparser.OrderBy{
+					&sqlparser.Order{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}, Direction: sqlparser.DescScr},
+				},
+			},
+			task: &OrderTask{
+				Input: &AliasTask{Input: &ScanTask{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
+				Orders: sqlparser.OrderBy{
+					&sqlparser.Order{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}, Direction: sqlparser.DescScr},
+				},
+			},
+			value: schema.NewInMemoryRows([][]string{{"t1.id", "t1.name"}}, [][]driver.Value{{1, "foo"}}),
+		},
+		{
+			plan: &plan.LimitPlan{
+				Input: &plan.AliasPlan{Input: &plan.ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
+				Limit: &sqlparser.Limit{Offset: sqlparser.NewIntVal([]byte("0")), Rowcount: sqlparser.NewIntVal([]byte("1"))},
+			},
+			task: &LimitTask{
+				Input: &AliasTask{Input: &ScanTask{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
+				Limit: &sqlparser.Limit{Offset: sqlparser.NewIntVal([]byte("0")), Rowcount: sqlparser.NewIntVal([]byte("1"))},
+			},
+			value: schema.NewInMemoryRows([][]string{{"t1.id", "t1.name"}}, [][]driver.Value{{1, "foo"}}),
+		},
 	}
 
 	for _, tt := range tests {

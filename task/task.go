@@ -3,15 +3,29 @@ package task
 import (
 	"context"
 	"database/sql/driver"
+	"errors"
+	"fmt"
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/siyul-park/sqlbridge/vm"
 	"github.com/xwb1989/sqlparser"
 	"reflect"
+	"sort"
 	"strings"
 )
 
 type Task interface {
 	Run(ctx context.Context) (driver.Value, error)
+}
+
+var ErrUnsupportedType = errors.New("unsupported type")
+var ErrUnsupportedValue = errors.New("unsupported value")
+
+func NewErrUnsupportedType(value any) error {
+	return fmt.Errorf("%w: %T", ErrUnsupportedType, value)
+}
+
+func NewErrUnsupportedValue(value any) error {
+	return fmt.Errorf("%w: %v", ErrUnsupportedValue, value)
 }
 
 type NopTask struct{}
@@ -64,7 +78,6 @@ func (t *AliasTask) Run(ctx context.Context) (driver.Value, error) {
 			}
 		}
 	}
-
 	return schema.NewInMemoryRows(columns, values), nil
 }
 
@@ -125,7 +138,6 @@ func (t *JoinTask) Run(ctx context.Context) (driver.Value, error) {
 	default:
 		return nil, NewErrUnsupportedValue(t.Join)
 	}
-
 	return schema.NewInMemoryRows(joinedColumns, joinedValues), nil
 }
 
@@ -134,12 +146,7 @@ func (t *JoinTask) on(leftColumns []string, leftValues []driver.Value, rightColu
 		columns := append(leftColumns, rightColumns...)
 		values := append(leftValues, rightValues...)
 
-		record := map[string]driver.Value{}
-		for i := range columns {
-			record[columns[i]] = values[i]
-		}
-
-		val, err := vm.Eval(record, t.On)
+		val, err := vm.Eval(schema.Bind(columns, values), t.On)
 		if err != nil {
 			return false, err
 		}
@@ -175,7 +182,6 @@ func (t *JoinTask) on(leftColumns []string, leftValues []driver.Value, rightColu
 			return false, nil
 		}
 	}
-
 	return true, nil
 }
 
@@ -201,12 +207,7 @@ func (t *FilterTask) Run(ctx context.Context) (driver.Value, error) {
 	}
 
 	for i := 0; i < len(columns); i++ {
-		record := map[string]driver.Value{}
-		for j := range columns {
-			record[columns[i][j]] = values[i][j]
-		}
-
-		val, err := vm.Eval(record, t.Expr)
+		val, err := vm.Eval(schema.Bind(columns[i], values[i]), t.Expr)
 		if err != nil {
 			return nil, err
 		}
@@ -217,7 +218,6 @@ func (t *FilterTask) Run(ctx context.Context) (driver.Value, error) {
 			i--
 		}
 	}
-
 	return schema.NewInMemoryRows(columns, values), nil
 }
 
@@ -243,11 +243,6 @@ func (t *ProjectTask) Run(ctx context.Context) (driver.Value, error) {
 	}
 
 	for i := 0; i < len(columns); i++ {
-		record := map[string]driver.Value{}
-		for j := range columns {
-			record[columns[i][j]] = values[i][j]
-		}
-
 		var cols []string
 		var vals []driver.Value
 		for _, expr := range t.Exprs {
@@ -273,7 +268,7 @@ func (t *ProjectTask) Run(ctx context.Context) (driver.Value, error) {
 					col = expr.As.String()
 				}
 
-				val, err := vm.Eval(record, expr.Expr)
+				val, err := vm.Eval(schema.Bind(columns[i], values[i]), expr.Expr)
 				if err != nil {
 					return nil, err
 				}
@@ -288,6 +283,123 @@ func (t *ProjectTask) Run(ctx context.Context) (driver.Value, error) {
 		columns[i] = cols
 		values[i] = vals
 	}
+	return schema.NewInMemoryRows(columns, values), nil
+}
+
+type OrderTask struct {
+	Input  Task
+	Orders sqlparser.OrderBy
+}
+
+var _ Task = (*OrderTask)(nil)
+
+func (t *OrderTask) Run(ctx context.Context) (driver.Value, error) {
+	val, err := t.Input.Run(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, ok := val.(driver.Rows)
+	if !ok {
+		return nil, NewErrUnsupportedType(val)
+	}
+	columns, values, err := schema.ReadAll(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	records := make([]map[string]driver.Value, 0, len(columns))
+	for i := 0; i < len(columns); i++ {
+		records = append(records, schema.Bind(columns[i], values[i]))
+	}
+
+	for _, order := range t.Orders {
+		sort.SliceStable(records, func(i, j int) bool {
+			lhs, err := vm.Eval(records[i], order.Expr)
+			if err != nil {
+				return false
+			}
+
+			rhs, err := vm.Eval(records[j], order.Expr)
+			if err != nil {
+				return false
+			}
+
+			cmp := &sqlparser.ComparisonExpr{
+				Operator: sqlparser.LessThanStr,
+				Left:     &sqlparser.ColName{Name: sqlparser.NewColIdent("lhs")},
+				Right:    &sqlparser.ColName{Name: sqlparser.NewColIdent("rhs")},
+			}
+			if order.Direction == sqlparser.DescScr {
+				cmp.Operator = sqlparser.GreaterThanStr
+			}
+
+			val, err := vm.Eval(map[string]driver.Value{"lhs": lhs, "rhs": rhs}, cmp)
+			if err != nil {
+				return false
+			}
+			return reflect.ValueOf(val).IsValid() && !reflect.ValueOf(val).IsZero()
+		})
+	}
+
+	columns = nil
+	values = nil
+	for _, record := range records {
+		cols, vals := schema.Unbind(record)
+		columns = append(columns, cols)
+		values = append(values, vals)
+	}
+	return schema.NewInMemoryRows(columns, values), nil
+}
+
+type LimitTask struct {
+	Input Task
+	Limit *sqlparser.Limit
+}
+
+var _ Task = (*LimitTask)(nil)
+
+func (t *LimitTask) Run(ctx context.Context) (driver.Value, error) {
+	val, err := t.Input.Run(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, ok := val.(driver.Rows)
+	if !ok {
+		return nil, NewErrUnsupportedType(val)
+	}
+	columns, values, err := schema.ReadAll(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	offset := 0
+	if t.Limit.Offset != nil {
+		if val, err := vm.Eval(nil, t.Limit.Offset); err != nil {
+			return nil, err
+		} else if v := reflect.ValueOf(val); v.CanInt() {
+			offset = int(v.Int())
+		}
+	}
+
+	rowcount := len(columns)
+	if t.Limit.Rowcount != nil {
+		if val, err := vm.Eval(nil, t.Limit.Rowcount); err != nil {
+			return nil, err
+		} else if v := reflect.ValueOf(val); v.CanInt() {
+			rowcount = int(v.Int())
+		}
+	}
+
+	if offset >= rowcount {
+		offset = rowcount - 1
+	}
+
+	if offset+rowcount > len(values) {
+		rowcount = len(values) - offset
+	}
+
+	columns = columns[offset : offset+rowcount]
+	values = values[offset : offset+rowcount]
 
 	return schema.NewInMemoryRows(columns, values), nil
 }
