@@ -15,7 +15,7 @@ func TestStatement_NumInput(t *testing.T) {
 	table := faker.Word()
 
 	catalog := schema.NewInMemoryCatalog(map[string]schema.Table{
-		table: schema.NewInMemoryTable(nil, nil),
+		table: schema.NewInMemoryTable(nil),
 	})
 	registry := schema.NewRegistry()
 
@@ -43,7 +43,7 @@ func TestStatement_Exec(t *testing.T) {
 	table := faker.Word()
 
 	catalog := schema.NewInMemoryCatalog(map[string]schema.Table{
-		table: schema.NewInMemoryTable(nil, nil),
+		table: schema.NewInMemoryTable(nil),
 	})
 	registry := schema.NewRegistry()
 
@@ -70,7 +70,7 @@ func TestStatement_Query(t *testing.T) {
 	table := faker.Word()
 
 	catalog := schema.NewInMemoryCatalog(map[string]schema.Table{
-		table: schema.NewInMemoryTable(nil, nil),
+		table: schema.NewInMemoryTable(nil),
 	})
 	registry := schema.NewRegistry()
 

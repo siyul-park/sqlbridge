@@ -97,7 +97,7 @@ func (s *Statement) QueryContext(ctx context.Context, args []driver.NamedValue) 
 
 	rows, ok := val.(driver.Rows)
 	if !ok {
-		rows = schema.NewInMemoryRows(nil, nil)
+		rows = schema.NewInMemoryRows(nil)
 	}
 	return rows, nil
 }

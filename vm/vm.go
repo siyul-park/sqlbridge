@@ -5,20 +5,20 @@ import (
 	"encoding/hex"
 	"reflect"
 	"strconv"
-	"strings"
 
+	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser"
 )
 
 type VM struct {
-	record map[string]driver.Value
+	record *schema.Record
 }
 
-func Eval(record map[string]driver.Value, expr sqlparser.Expr) (driver.Value, error) {
+func Eval(record *schema.Record, expr sqlparser.Expr) (driver.Value, error) {
 	return New(record).Eval(expr)
 }
 
-func New(record map[string]driver.Value) *VM {
+func New(record *schema.Record) *VM {
 	return &VM{record: record}
 }
 
@@ -155,21 +155,6 @@ func (vm *VM) evalBoolVal(expr sqlparser.BoolVal) (driver.Value, error) {
 }
 
 func (vm *VM) evalColName(expr *sqlparser.ColName) (driver.Value, error) {
-	column := expr.Name.String()
-	if !expr.Qualifier.IsEmpty() {
-		column = expr.Qualifier.Name.CompliantName() + "." + column
-	}
-
-	if val, ok := vm.record[column]; ok {
-		return val, nil
-	}
-
-	if expr.Qualifier.IsEmpty() {
-		for col, val := range vm.record {
-			if parts := strings.Split(col, "."); parts[len(parts)-1] == column {
-				return val, nil
-			}
-		}
-	}
-	return nil, nil
+	val, _ := vm.record.Get(expr)
+	return val, nil
 }

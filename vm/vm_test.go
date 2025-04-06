@@ -4,13 +4,15 @@ import (
 	"database/sql/driver"
 	"testing"
 
+	"github.com/siyul-park/sqlbridge/schema"
+
 	"github.com/stretchr/testify/require"
 	"github.com/xwb1989/sqlparser"
 )
 
 func TestVM_Eval(t *testing.T) {
 	tests := []struct {
-		record map[string]driver.Value
+		record *schema.Record
 		expr   sqlparser.Expr
 		value  driver.Value
 	}{
@@ -63,9 +65,15 @@ func TestVM_Eval(t *testing.T) {
 			value: true,
 		},
 		{
-			record: map[string]driver.Value{"id": 1, "name": "foo"},
-			expr:   &sqlparser.ColName{Name: sqlparser.NewColIdent("id")},
-			value:  1,
+			record: &schema.Record{
+				Columns: []*sqlparser.ColName{
+					{Name: sqlparser.NewColIdent("id")},
+					{Name: sqlparser.NewColIdent("name")},
+				},
+				Values: []driver.Value{1, "foo"},
+			},
+			expr:  &sqlparser.ColName{Name: sqlparser.NewColIdent("id")},
+			value: 1,
 		},
 	}
 

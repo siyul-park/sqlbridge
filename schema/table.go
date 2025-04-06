@@ -2,27 +2,22 @@ package schema
 
 import (
 	"context"
-	"database/sql/driver"
 )
 
 type Table interface {
-	Scan(ctx context.Context) (driver.Rows, error)
+	Scan(ctx context.Context) (Rows, error)
 }
 
 type InMemoryTable struct {
-	columns [][]string
-	values  [][]driver.Value
+	records []*Record
 }
 
 var _ Table = (*InMemoryTable)(nil)
 
-func NewInMemoryTable(columns [][]string, rows [][]driver.Value) *InMemoryTable {
-	return &InMemoryTable{
-		columns: columns,
-		values:  rows,
-	}
+func NewInMemoryTable(records []*Record) *InMemoryTable {
+	return &InMemoryTable{records: records}
 }
 
-func (t *InMemoryTable) Scan(_ context.Context) (driver.Rows, error) {
-	return NewInMemoryRows(t.columns, t.values), nil
+func (t *InMemoryTable) Scan(_ context.Context) (Rows, error) {
+	return NewInMemoryRows(t.records), nil
 }
