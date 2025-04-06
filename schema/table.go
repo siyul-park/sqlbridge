@@ -23,6 +23,6 @@ func NewInMemoryTable(columns [][]string, rows [][]driver.Value) *InMemoryTable 
 	}
 }
 
-func (t *InMemoryTable) Scan(ctx context.Context) (driver.Rows, error) {
+func (t *InMemoryTable) Scan(_ context.Context) (driver.Rows, error) {
 	return NewInMemoryRows(t.columns, t.values), nil
 }

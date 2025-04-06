@@ -3,29 +3,17 @@ package task
 import (
 	"context"
 	"database/sql/driver"
-	"errors"
-	"fmt"
-	"github.com/siyul-park/sqlbridge/schema"
-	"github.com/siyul-park/sqlbridge/vm"
-	"github.com/xwb1989/sqlparser"
 	"reflect"
 	"sort"
 	"strings"
+
+	"github.com/siyul-park/sqlbridge/schema"
+	"github.com/siyul-park/sqlbridge/vm"
+	"github.com/xwb1989/sqlparser"
 )
 
 type Task interface {
 	Run(ctx context.Context) (driver.Value, error)
-}
-
-var ErrUnsupportedType = errors.New("unsupported type")
-var ErrUnsupportedValue = errors.New("unsupported value")
-
-func NewErrUnsupportedType(value any) error {
-	return fmt.Errorf("%w: %T", ErrUnsupportedType, value)
-}
-
-func NewErrUnsupportedValue(value any) error {
-	return fmt.Errorf("%w: %v", ErrUnsupportedValue, value)
 }
 
 type NopTask struct{}

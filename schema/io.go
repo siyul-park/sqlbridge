@@ -3,6 +3,7 @@ package schema
 import (
 	"database/sql/driver"
 	"io"
+	"sort"
 )
 
 func ReadAll(rows driver.Rows) ([][]string, [][]driver.Value, error) {
@@ -35,10 +36,14 @@ func Bind(columns []string, values []driver.Value) map[string]driver.Value {
 
 func Unbind(record map[string]driver.Value) ([]string, []driver.Value) {
 	columns := make([]string, 0, len(record))
-	values := make([]driver.Value, 0, len(record))
-	for column, value := range record {
+	for column := range record {
 		columns = append(columns, column)
-		values = append(values, value)
+	}
+	sort.Strings(columns)
+
+	values := make([]driver.Value, 0, len(columns))
+	for _, column := range columns {
+		values = append(values, record[column])
 	}
 	return columns, values
 }

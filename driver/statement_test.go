@@ -2,6 +2,7 @@ package driver
 
 import (
 	"database/sql/driver"
+	"fmt"
 	"testing"
 
 	"github.com/go-faker/faker/v4"
@@ -10,19 +11,24 @@ import (
 )
 
 func TestStatement_NumInput(t *testing.T) {
-	drv := New()
-
 	name := faker.Word()
-	sc := schema.New(nil)
+	table := faker.Word()
 
-	ok := drv.AddSchema(name, sc)
-	require.True(t, ok)
+	catalog := schema.NewInMemoryCatalog(map[string]schema.Table{
+		table: schema.NewInMemoryTable(nil, nil),
+	})
+	registry := schema.NewRegistry()
+
+	err := registry.SetCatalog(name, catalog)
+	require.NoError(t, err)
+
+	drv := New(registry)
 
 	conn, err := drv.Open(name)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	stmt, err := conn.Prepare("SELECT * FROM users WHERE name = ?")
+	stmt, err := conn.Prepare(fmt.Sprintf("SELECT * FROM %s WHERE name = ?", table))
 	require.NoError(t, err)
 	require.NotNil(t, stmt)
 
@@ -33,19 +39,24 @@ func TestStatement_NumInput(t *testing.T) {
 }
 
 func TestStatement_Exec(t *testing.T) {
-	drv := New()
-
 	name := faker.Word()
-	sc := schema.New(nil)
+	table := faker.Word()
 
-	ok := drv.AddSchema(name, sc)
-	require.True(t, ok)
+	catalog := schema.NewInMemoryCatalog(map[string]schema.Table{
+		table: schema.NewInMemoryTable(nil, nil),
+	})
+	registry := schema.NewRegistry()
+
+	err := registry.SetCatalog(name, catalog)
+	require.NoError(t, err)
+
+	drv := New(registry)
 
 	conn, err := drv.Open(name)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	stmt, err := conn.Prepare("SELECT * FROM users WHERE name = ?")
+	stmt, err := conn.Prepare(fmt.Sprintf("SELECT * FROM %s WHERE name = ?", table))
 	require.NoError(t, err)
 	require.NotNil(t, stmt)
 
@@ -55,19 +66,24 @@ func TestStatement_Exec(t *testing.T) {
 }
 
 func TestStatement_Query(t *testing.T) {
-	drv := New()
-
 	name := faker.Word()
-	sc := schema.New(nil)
+	table := faker.Word()
 
-	ok := drv.AddSchema(name, sc)
-	require.True(t, ok)
+	catalog := schema.NewInMemoryCatalog(map[string]schema.Table{
+		table: schema.NewInMemoryTable(nil, nil),
+	})
+	registry := schema.NewRegistry()
+
+	err := registry.SetCatalog(name, catalog)
+	require.NoError(t, err)
+
+	drv := New(registry)
 
 	conn, err := drv.Open(name)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	stmt, err := conn.Prepare("SELECT * FROM users WHERE name = ?")
+	stmt, err := conn.Prepare(fmt.Sprintf("SELECT * FROM %s WHERE name = ?", table))
 	require.NoError(t, err)
 	require.NotNil(t, stmt)
 

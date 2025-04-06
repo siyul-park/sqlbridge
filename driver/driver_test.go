@@ -9,13 +9,14 @@ import (
 )
 
 func TestDriver_Open(t *testing.T) {
-	drv := New()
-
 	name := faker.Word()
-	sc := schema.New(nil)
+	catalog := schema.NewInMemoryCatalog(nil)
+	registry := schema.NewRegistry()
 
-	ok := drv.AddSchema(name, sc)
-	require.True(t, ok)
+	err := registry.SetCatalog(name, catalog)
+	require.NoError(t, err)
+
+	drv := New(registry)
 
 	conn, err := drv.Open(name)
 	require.NoError(t, err)
@@ -23,13 +24,14 @@ func TestDriver_Open(t *testing.T) {
 }
 
 func TestDriver_OpenConnector(t *testing.T) {
-	drv := New()
-
 	name := faker.Word()
-	sc := schema.New(nil)
+	catalog := schema.NewInMemoryCatalog(nil)
+	registry := schema.NewRegistry()
 
-	ok := drv.AddSchema(name, sc)
-	require.True(t, ok)
+	err := registry.SetCatalog(name, catalog)
+	require.NoError(t, err)
+
+	drv := New(registry)
 
 	connector, err := drv.OpenConnector(name)
 	require.NoError(t, err)

@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/siyul-park/sqlbridge/plan"
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/stretchr/testify/require"
 	"github.com/xwb1989/sqlparser"
-	"testing"
-	"time"
 )
 
 func TestTask_Run(t *testing.T) {

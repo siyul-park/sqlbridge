@@ -2,9 +2,10 @@ package vm
 
 import (
 	"database/sql/driver"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"github.com/xwb1989/sqlparser"
-	"testing"
 )
 
 func TestVM_Eval(t *testing.T) {

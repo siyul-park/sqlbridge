@@ -3,10 +3,11 @@ package vm
 import (
 	"database/sql/driver"
 	"encoding/hex"
-	"github.com/xwb1989/sqlparser"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/xwb1989/sqlparser"
 )
 
 type VM struct {
