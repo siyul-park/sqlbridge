@@ -8,13 +8,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/siyul-park/sqlbridge/vm"
+	"github.com/siyul-park/sqlbridge/plan"
+	"github.com/siyul-park/sqlbridge/schema"
+	"github.com/siyul-park/sqlbridge/task"
 	"github.com/xwb1989/sqlparser"
 )
 
 type Statement struct {
-	vm    *vm.VM
-	query string
+	planner *plan.Planner
+	builder *task.Builder
+	query   string
 }
 
 var _ driver.Stmt = (*Statement)(nil)
@@ -47,7 +50,33 @@ func (s *Statement) ExecContext(ctx context.Context, args []driver.NamedValue) (
 	if err != nil {
 		return nil, err
 	}
-	return s.vm.Exec(ctx, stmt)
+
+	p, err := s.planner.Plan(stmt)
+	if err != nil {
+		return nil, err
+	}
+
+	t, err := s.builder.Build(p)
+	if err != nil {
+		return nil, err
+	}
+
+	val, err := t.Run(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, ok := val.(driver.Rows)
+	if !ok {
+		rows = schema.NewInMemoryRows(nil, nil)
+	}
+
+	columns, _, err := schema.ReadAll(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return schema.NewInMemoryResult(0, int64(len(columns))), nil
 }
 
 func (s *Statement) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
@@ -56,7 +85,27 @@ func (s *Statement) QueryContext(ctx context.Context, args []driver.NamedValue) 
 	if err != nil {
 		return nil, err
 	}
-	return s.vm.Query(ctx, stmt)
+
+	p, err := s.planner.Plan(stmt)
+	if err != nil {
+		return nil, err
+	}
+
+	t, err := s.builder.Build(p)
+	if err != nil {
+		return nil, err
+	}
+
+	val, err := t.Run(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, ok := val.(driver.Rows)
+	if !ok {
+		rows = schema.NewInMemoryRows(nil, nil)
+	}
+	return rows, nil
 }
 
 func (s *Statement) Close() error {

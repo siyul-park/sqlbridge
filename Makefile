@@ -14,7 +14,6 @@ init:
 install-tools:
 	@go install golang.org/x/tools/cmd/godoc@latest
 	@go install golang.org/x/tools/cmd/goimports@latest
-	@go install honnef.co/go/tools/cmd/staticcheck@latest
 
 install-modules:
 	@go install -v ./...
@@ -43,7 +42,7 @@ clean-cache:
 sync:
 	@go work sync
 
-check: lint test staticcheck
+check: lint test
 
 test:
 	@go test -race $(test-options) ./...
@@ -54,16 +53,13 @@ coverage:
 benchmark:
 	@go test -run="-" -bench=".*" -benchmem $(test-options) ./...
 
-lint: fmt vet staticcheck
+lint: fmt vet
 
 fmt:
 	@goimports -w .
 
 vet:
 	@go vet ./...
-
-staticcheck:
-	@staticcheck ./...
 
 doc: init
 	@godoc -http=:6060

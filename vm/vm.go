@@ -1,69 +1,175 @@
 package vm
 
 import (
-	"context"
 	"database/sql/driver"
+	"encoding/hex"
+	"reflect"
+	"strconv"
+	"strings"
 
-	"github.com/siyul-park/sqlbridge/schema"
-	"github.com/siyul-park/sqlbridge/task"
 	"github.com/xwb1989/sqlparser"
 )
 
 type VM struct {
-	builder task.Builder
-	schema  schema.Schema
+	record map[string]driver.Value
 }
 
-func WithBuilder(builder task.Builder) func(*VM) {
-	return func(vm *VM) { vm.builder = builder }
+func Eval(record map[string]driver.Value, expr sqlparser.Expr) (driver.Value, error) {
+	return New(record).Eval(expr)
 }
 
-func WithSchema(schema schema.Schema) func(*VM) {
-	return func(vm *VM) { vm.schema = schema }
+func New(record map[string]driver.Value) *VM {
+	return &VM{record: record}
 }
 
-func New(opts ...func(*VM)) *VM {
-	vm := &VM{}
-	for _, opt := range opts {
-		opt(vm)
+func (vm *VM) Eval(expr sqlparser.Expr) (driver.Value, error) {
+	switch expr := expr.(type) {
+	case *sqlparser.AndExpr:
+	case *sqlparser.OrExpr:
+	case *sqlparser.NotExpr:
+	case *sqlparser.ParenExpr:
+	case *sqlparser.ComparisonExpr:
+		return vm.evalComparisonExpr(expr)
+	case *sqlparser.RangeCond:
+	case *sqlparser.IsExpr:
+	case *sqlparser.ExistsExpr:
+	case *sqlparser.SQLVal:
+		return vm.evalSQLVal(expr)
+	case *sqlparser.NullVal:
+		return vm.evalNullVal(expr)
+	case sqlparser.BoolVal:
+		return vm.evalBoolVal(expr)
+	case *sqlparser.ColName:
+		return vm.evalColName(expr)
+	case sqlparser.ValTuple:
+	case sqlparser.ListArg:
+	case *sqlparser.BinaryExpr:
+	case *sqlparser.UnaryExpr:
+	case *sqlparser.IntervalExpr:
+	case *sqlparser.CollateExpr:
+	case *sqlparser.FuncExpr:
+	case *sqlparser.CaseExpr:
+	case *sqlparser.ValuesFuncExpr:
+	case *sqlparser.ConvertExpr:
+	case *sqlparser.SubstrExpr:
+	case *sqlparser.ConvertUsingExpr:
+	case *sqlparser.MatchExpr:
+	case *sqlparser.GroupConcatExpr:
+	case *sqlparser.Default:
 	}
-	if vm.builder == nil {
-		vm.builder = task.Build(func(node sqlparser.SQLNode) (task.Task, error) { return nil, driver.ErrSkip })
-	}
-	if vm.schema == nil {
-		vm.schema = schema.New(nil)
-	}
-	return vm
+	return nil, driver.ErrSkip
 }
 
-func (vm *VM) Exec(ctx context.Context, node sqlparser.SQLNode) (driver.Result, error) {
-	val, err := vm.Eval(ctx, node)
+func (vm *VM) evalComparisonExpr(expr *sqlparser.ComparisonExpr) (driver.Value, error) {
+	left, err := vm.Eval(expr.Left)
 	if err != nil {
 		return nil, err
 	}
-	result, ok := val.(driver.Result)
-	if !ok {
-		return nil, driver.ErrSkip
-	}
-	return result, nil
-}
 
-func (vm *VM) Query(ctx context.Context, node sqlparser.SQLNode) (driver.Rows, error) {
-	val, err := vm.Eval(ctx, node)
+	right, err := vm.Eval(expr.Right)
 	if err != nil {
 		return nil, err
 	}
-	rows, ok := val.(driver.Rows)
-	if !ok {
-		return nil, driver.ErrSkip
+
+	switch expr.Operator {
+	case sqlparser.EqualStr, sqlparser.NullSafeEqualStr:
+		return reflect.DeepEqual(left, right), nil
+	case sqlparser.LessEqualStr, sqlparser.GreaterEqualStr:
+		if !reflect.DeepEqual(left, right) {
+			return false, nil
+		}
+	case sqlparser.NotEqualStr:
+		return !reflect.DeepEqual(left, right), nil
 	}
-	return rows, nil
+
+	switch expr.Operator {
+	case sqlparser.LessThanStr, sqlparser.LessEqualStr:
+	case sqlparser.GreaterThanStr, sqlparser.GreaterEqualStr:
+	case sqlparser.InStr:
+	case sqlparser.NotInStr:
+	case sqlparser.LikeStr:
+	case sqlparser.NotLikeStr:
+	case sqlparser.RegexpStr:
+	case sqlparser.NotRegexpStr:
+	case sqlparser.JSONExtractOp:
+	case sqlparser.JSONUnquoteExtractOp:
+	}
+	return nil, driver.ErrSkip
 }
 
-func (vm *VM) Eval(ctx context.Context, node sqlparser.SQLNode) (driver.Value, error) {
-	tsk, err := vm.builder.Build(node)
-	if err != nil {
-		return nil, err
+func (vm *VM) evalSQLVal(expr *sqlparser.SQLVal) (driver.Value, error) {
+	switch expr.Type {
+	case sqlparser.StrVal:
+		return string(expr.Val), nil
+	case sqlparser.IntVal:
+		v, err := strconv.ParseInt(string(expr.Val), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case sqlparser.FloatVal:
+		v, err := strconv.ParseFloat(string(expr.Val), 64)
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case sqlparser.HexNum:
+		v, err := strconv.ParseInt(string(expr.Val), 16, 64)
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case sqlparser.HexVal:
+		v, err := hex.DecodeString(string(expr.Val))
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case sqlparser.ValArg:
+	case sqlparser.BitVal:
+		var buf []byte
+		for i := len(string(expr.Val)); i > 0; i -= 8 {
+			var chunk string
+			if i-8 < 0 {
+				chunk = string(expr.Val)[0:i]
+			} else {
+				chunk = string(expr.Val)[i-8 : i]
+			}
+			v, err := strconv.ParseUint(chunk, 2, 8)
+			if err != nil {
+				return nil, err
+			}
+			buf = append([]byte{byte(v)}, buf...)
+		}
+		return buf, nil
 	}
-	return tsk.Run(ctx, vm.schema)
+	return nil, driver.ErrSkip
+}
+
+func (vm *VM) evalNullVal(_ *sqlparser.NullVal) (driver.Value, error) {
+	return nil, nil
+}
+
+func (vm *VM) evalBoolVal(expr sqlparser.BoolVal) (driver.Value, error) {
+	return bool(expr), nil
+}
+
+func (vm *VM) evalColName(expr *sqlparser.ColName) (driver.Value, error) {
+	column := expr.Name.String()
+	if !expr.Qualifier.IsEmpty() {
+		column = expr.Qualifier.Name.CompliantName() + "." + column
+	}
+
+	if val, ok := vm.record[column]; ok {
+		return val, nil
+	}
+
+	if expr.Qualifier.IsEmpty() {
+		for col, val := range vm.record {
+			if parts := strings.Split(col, "."); parts[len(parts)-1] == column {
+				return val, nil
+			}
+		}
+	}
+	return nil, nil
 }

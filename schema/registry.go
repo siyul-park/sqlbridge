@@ -1,46 +1,39 @@
 package schema
 
 import (
+	"fmt"
 	"sync"
 )
 
 type Registry struct {
-	schemas map[string]Schema
-	mu      sync.RWMutex
+	catalogs map[string]Catalog
+	mu       sync.RWMutex
 }
 
 func NewRegistry() *Registry {
-	return &Registry{schemas: make(map[string]Schema)}
+	return &Registry{catalogs: make(map[string]Catalog)}
 }
 
-func (r *Registry) AddSchema(name string, schema Schema) bool {
+func (r *Registry) SetCatalog(name string, catalog Catalog) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, exists := r.schemas[name]; exists {
-		return false
+	_, ok := r.catalogs[name]
+	if ok {
+		return fmt.Errorf("catalog already exists: %v", name)
 	}
 
-	r.schemas[name] = schema
-	return true
+	r.catalogs[name] = catalog
+	return nil
 }
 
-func (r *Registry) RemoveSchema(name string) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if _, exists := r.schemas[name]; !exists {
-		return false
-	}
-
-	delete(r.schemas, name)
-	return true
-}
-
-func (r *Registry) Schema(name string) (Schema, bool) {
+func (r *Registry) Catalog(name string) (Catalog, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	sc, ok := r.schemas[name]
-	return sc, ok
+	catalog, ok := r.catalogs[name]
+	if !ok {
+		return nil, fmt.Errorf("catalog not found: %v", name)
+	}
+	return catalog, nil
 }

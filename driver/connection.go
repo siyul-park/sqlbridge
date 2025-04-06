@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql/driver"
 
-	"github.com/siyul-park/sqlbridge/vm"
+	"github.com/siyul-park/sqlbridge/plan"
+	"github.com/siyul-park/sqlbridge/task"
 )
 
 type Connection struct {
-	vm *vm.VM
+	planner *plan.Planner
+	builder *task.Builder
 }
 
 var _ driver.Conn = (*Connection)(nil)
@@ -28,11 +30,11 @@ func (c *Connection) Begin() (driver.Tx, error) {
 	return c.BeginTx(context.Background(), driver.TxOptions{})
 }
 
-func (c *Connection) Ping(ctx context.Context) error {
+func (c *Connection) Ping(_ context.Context) error {
 	return nil
 }
 
-func (c *Connection) ResetSession(ctx context.Context) error {
+func (c *Connection) ResetSession(_ context.Context) error {
 	return nil
 }
 
@@ -65,13 +67,12 @@ func (c *Connection) PrepareContext(ctx context.Context, query string) (driver.S
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
-		return &Statement{vm: c.vm, query: query}, nil
+		return &Statement{planner: c.planner, builder: c.builder, query: query}, nil
 	}
 }
 
-func (c *Connection) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
-	//TODO implement me
-	panic("implement me")
+func (c *Connection) BeginTx(_ context.Context, _ driver.TxOptions) (driver.Tx, error) {
+	return nil, driver.ErrSkip
 }
 
 func (c *Connection) Close() error {

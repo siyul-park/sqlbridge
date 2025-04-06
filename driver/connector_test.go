@@ -14,13 +14,14 @@ func TestConnector_Connect(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
 	defer cancel()
 
-	drv := New()
-
 	name := faker.Word()
-	sc := schema.New(nil)
+	catalog := schema.NewInMemoryCatalog(nil)
+	registry := schema.NewRegistry()
 
-	ok := drv.AddSchema(name, sc)
-	require.True(t, ok)
+	err := registry.SetCatalog(name, catalog)
+	require.NoError(t, err)
+
+	drv := New(registry)
 
 	connector, err := drv.OpenConnector(name)
 	require.NoError(t, err)
@@ -32,13 +33,14 @@ func TestConnector_Connect(t *testing.T) {
 }
 
 func TestConnector_Driver(t *testing.T) {
-	drv := New()
-
 	name := faker.Word()
-	sc := schema.New(nil)
+	catalog := schema.NewInMemoryCatalog(nil)
+	registry := schema.NewRegistry()
 
-	ok := drv.AddSchema(name, sc)
-	require.True(t, ok)
+	err := registry.SetCatalog(name, catalog)
+	require.NoError(t, err)
+
+	drv := New(registry)
 
 	connector, err := drv.OpenConnector(name)
 	require.NoError(t, err)
