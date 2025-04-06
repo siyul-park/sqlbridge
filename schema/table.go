@@ -3,25 +3,26 @@ package schema
 import (
 	"context"
 	"database/sql/driver"
-
-	"github.com/xwb1989/sqlparser"
 )
 
 type Table interface {
-	Queryer
+	Scan(ctx context.Context) (driver.Rows, error)
 }
 
-type inlineTable struct {
+type InMemoryTable struct {
 	columns [][]string
 	values  [][]driver.Value
 }
 
-var _ Table = (*inlineTable)(nil)
+var _ Table = (*InMemoryTable)(nil)
 
-func NewInlineTable(columns [][]string, rows [][]driver.Value) Table {
-	return &inlineTable{columns: columns, values: rows}
+func NewInMemoryTable(columns [][]string, rows [][]driver.Value) *InMemoryTable {
+	return &InMemoryTable{
+		columns: columns,
+		values:  rows,
+	}
 }
 
-func (t *inlineTable) Query(_ context.Context, _ sqlparser.SQLNode) (driver.Rows, error) {
-	return NewInlineRows(t.columns, t.values), nil
+func (t *InMemoryTable) Scan(ctx context.Context) (driver.Rows, error) {
+	return NewInMemoryRows(t.columns, t.values), nil
 }
