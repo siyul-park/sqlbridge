@@ -115,7 +115,7 @@ func (t *JoinTask) Run(ctx context.Context) (schema.Cursor, error) {
 			}
 		}
 	default:
-		return nil, NewErrUnsupportedValue(t.Join)
+		return nil, driver.ErrSkip
 	}
 	return schema.NewInMemoryCursor(joined), nil
 }
@@ -241,7 +241,7 @@ func (t *ProjectTask) Run(ctx context.Context) (schema.Cursor, error) {
 				columns = append(columns, col)
 				values = append(values, val)
 			default:
-				return nil, NewErrUnsupportedValue(expr)
+				return nil, driver.ErrSkip
 			}
 		}
 		record.Columns = columns
