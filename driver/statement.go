@@ -66,17 +66,11 @@ func (s *Statement) ExecContext(ctx context.Context, args []driver.NamedValue) (
 		return nil, err
 	}
 
-	rows, ok := val.(driver.Rows)
+	result, ok := val.(driver.Result)
 	if !ok {
-		rows = schema.NewInMemoryRows(nil, nil)
+		result = schema.NewInMemoryResult(0, 0)
 	}
-
-	columns, _, err := schema.ReadAll(rows)
-	if err != nil {
-		return nil, err
-	}
-
-	return schema.NewInMemoryResult(0, int64(len(columns))), nil
+	return result, nil
 }
 
 func (s *Statement) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
