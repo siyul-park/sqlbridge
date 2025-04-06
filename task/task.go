@@ -12,14 +12,14 @@ import (
 )
 
 type Task interface {
-	Run(ctx context.Context) (driver.Value, error)
+	Run(ctx context.Context) (schema.Cursor, error)
 }
 
 type NopTask struct{}
 
 var _ Task = (*NopTask)(nil)
 
-func (t *NopTask) Run(_ context.Context) (driver.Value, error) {
+func (t *NopTask) Run(_ context.Context) (schema.Cursor, error) {
 	return nil, nil
 }
 
@@ -30,7 +30,7 @@ type ScanTask struct {
 
 var _ Task = (*NopTask)(nil)
 
-func (t *ScanTask) Run(ctx context.Context) (driver.Value, error) {
+func (t *ScanTask) Run(ctx context.Context) (schema.Cursor, error) {
 	table, err := t.Catalog.Table(t.Table.Name.CompliantName())
 	if err != nil {
 		return nil, err
@@ -45,17 +45,13 @@ type AliasTask struct {
 
 var _ Task = (*AliasTask)(nil)
 
-func (t *AliasTask) Run(ctx context.Context) (driver.Value, error) {
-	val, err := t.Input.Run(ctx)
+func (t *AliasTask) Run(ctx context.Context) (schema.Cursor, error) {
+	cursor, err := t.Input.Run(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, ok := val.(schema.Rows)
-	if !ok {
-		return nil, NewErrUnsupportedType(val)
-	}
 
-	records, err := schema.ReadAll(rows)
+	records, err := schema.ReadAll(cursor)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +64,7 @@ func (t *AliasTask) Run(ctx context.Context) (driver.Value, error) {
 			}
 		}
 	}
-	return schema.NewInMemoryRows(records), nil
+	return schema.NewInMemoryCursor(records), nil
 }
 
 type JoinTask struct {
@@ -81,31 +77,21 @@ type JoinTask struct {
 
 var _ Task = (*JoinTask)(nil)
 
-func (t *JoinTask) Run(ctx context.Context) (driver.Value, error) {
-	leftValue, err := t.Left.Run(ctx)
+func (t *JoinTask) Run(ctx context.Context) (schema.Cursor, error) {
+	lcsr, err := t.Left.Run(ctx)
 	if err != nil {
 		return nil, err
 	}
-	leftRows, ok := leftValue.(schema.Rows)
-	if !ok {
-		return nil, NewErrUnsupportedType(leftValue)
-	}
-
-	rightValue, err := t.Right.Run(ctx)
-	if err != nil {
-		return nil, err
-	}
-	rightRows, ok := rightValue.(schema.Rows)
-	if !ok {
-		return nil, NewErrUnsupportedType(rightValue)
-	}
-
-	left, err := schema.ReadAll(leftRows)
+	rcsr, err := t.Right.Run(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	right, err := schema.ReadAll(rightRows)
+	left, err := schema.ReadAll(lcsr)
+	if err != nil {
+		return nil, err
+	}
+	right, err := schema.ReadAll(rcsr)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +117,7 @@ func (t *JoinTask) Run(ctx context.Context) (driver.Value, error) {
 	default:
 		return nil, NewErrUnsupportedValue(t.Join)
 	}
-	return schema.NewInMemoryRows(joined), nil
+	return schema.NewInMemoryCursor(joined), nil
 }
 
 func (t *JoinTask) on(lhs, rhs *schema.Record) (bool, error) {
@@ -181,17 +167,13 @@ type FilterTask struct {
 
 var _ Task = (*FilterTask)(nil)
 
-func (t *FilterTask) Run(ctx context.Context) (driver.Value, error) {
-	val, err := t.Input.Run(ctx)
+func (t *FilterTask) Run(ctx context.Context) (schema.Cursor, error) {
+	cursor, err := t.Input.Run(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, ok := val.(schema.Rows)
-	if !ok {
-		return nil, NewErrUnsupportedType(val)
-	}
 
-	records, err := schema.ReadAll(rows)
+	records, err := schema.ReadAll(cursor)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +189,7 @@ func (t *FilterTask) Run(ctx context.Context) (driver.Value, error) {
 			i--
 		}
 	}
-	return schema.NewInMemoryRows(records), nil
+	return schema.NewInMemoryCursor(records), nil
 }
 
 type ProjectTask struct {
@@ -217,17 +199,13 @@ type ProjectTask struct {
 
 var _ Task = (*ProjectTask)(nil)
 
-func (t *ProjectTask) Run(ctx context.Context) (driver.Value, error) {
-	val, err := t.Input.Run(ctx)
+func (t *ProjectTask) Run(ctx context.Context) (schema.Cursor, error) {
+	cursor, err := t.Input.Run(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, ok := val.(schema.Rows)
-	if !ok {
-		return nil, NewErrUnsupportedType(val)
-	}
 
-	records, err := schema.ReadAll(rows)
+	records, err := schema.ReadAll(cursor)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +247,7 @@ func (t *ProjectTask) Run(ctx context.Context) (driver.Value, error) {
 		record.Columns = columns
 		record.Values = values
 	}
-	return schema.NewInMemoryRows(records), nil
+	return schema.NewInMemoryCursor(records), nil
 }
 
 type OrderTask struct {
@@ -279,17 +257,13 @@ type OrderTask struct {
 
 var _ Task = (*OrderTask)(nil)
 
-func (t *OrderTask) Run(ctx context.Context) (driver.Value, error) {
-	val, err := t.Input.Run(ctx)
+func (t *OrderTask) Run(ctx context.Context) (schema.Cursor, error) {
+	cursor, err := t.Input.Run(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, ok := val.(schema.Rows)
-	if !ok {
-		return nil, NewErrUnsupportedType(val)
-	}
 
-	records, err := schema.ReadAll(rows)
+	records, err := schema.ReadAll(cursor)
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +301,7 @@ func (t *OrderTask) Run(ctx context.Context) (driver.Value, error) {
 			return reflect.ValueOf(val).IsValid() && !reflect.ValueOf(val).IsZero()
 		})
 	}
-	return schema.NewInMemoryRows(records), nil
+	return schema.NewInMemoryCursor(records), nil
 }
 
 type LimitTask struct {
@@ -337,17 +311,13 @@ type LimitTask struct {
 
 var _ Task = (*LimitTask)(nil)
 
-func (t *LimitTask) Run(ctx context.Context) (driver.Value, error) {
-	val, err := t.Input.Run(ctx)
+func (t *LimitTask) Run(ctx context.Context) (schema.Cursor, error) {
+	cursor, err := t.Input.Run(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, ok := val.(schema.Rows)
-	if !ok {
-		return nil, NewErrUnsupportedType(val)
-	}
 
-	records, err := schema.ReadAll(rows)
+	records, err := schema.ReadAll(cursor)
 	if err != nil {
 		return nil, err
 	}
@@ -376,5 +346,5 @@ func (t *LimitTask) Run(ctx context.Context) (driver.Value, error) {
 	if offset+rowcount > len(records) {
 		rowcount = len(records) - offset
 	}
-	return schema.NewInMemoryRows(records[offset : offset+rowcount]), nil
+	return schema.NewInMemoryCursor(records[offset : offset+rowcount]), nil
 }

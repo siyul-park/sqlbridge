@@ -32,7 +32,6 @@ func TestTask_Run(t *testing.T) {
 			Values: []driver.Value{2, "bar"},
 		},
 	})
-
 	catalog := schema.NewInMemoryCatalog(map[string]schema.Table{
 		"t1": t1,
 		"t2": t2,
@@ -52,7 +51,7 @@ func TestTask_Run(t *testing.T) {
 		{
 			plan: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 			task: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
-			value: schema.NewInMemoryRows([]*schema.Record{
+			value: schema.NewInMemoryCursor([]*schema.Record{
 				{
 					Columns: []*sqlparser.ColName{
 						{Name: sqlparser.NewColIdent("id")},
@@ -65,7 +64,7 @@ func TestTask_Run(t *testing.T) {
 		{
 			plan: &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 			task: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
-			value: schema.NewInMemoryRows([]*schema.Record{
+			value: schema.NewInMemoryCursor([]*schema.Record{
 				{
 					Columns: []*sqlparser.ColName{
 						{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
@@ -84,7 +83,7 @@ func TestTask_Run(t *testing.T) {
 				Left:  &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Right: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
 			},
-			value: schema.NewInMemoryRows([]*schema.Record{
+			value: schema.NewInMemoryCursor([]*schema.Record{
 				{
 					Columns: []*sqlparser.ColName{
 						{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
@@ -115,7 +114,7 @@ func TestTask_Run(t *testing.T) {
 					Right:    &sqlparser.ColName{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
 				},
 			},
-			value: schema.NewInMemoryRows(nil),
+			value: schema.NewInMemoryCursor(nil),
 		},
 		{
 			plan: &plan.JoinPlan{
@@ -128,7 +127,7 @@ func TestTask_Run(t *testing.T) {
 				Right: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
 				Using: []sqlparser.ColIdent{sqlparser.NewColIdent("id")},
 			},
-			value: schema.NewInMemoryRows(nil),
+			value: schema.NewInMemoryCursor(nil),
 		},
 		{
 			plan: &plan.FilterPlan{
@@ -147,7 +146,7 @@ func TestTask_Run(t *testing.T) {
 					Right:    sqlparser.NewIntVal([]byte("0")),
 				},
 			},
-			value: schema.NewInMemoryRows(nil),
+			value: schema.NewInMemoryCursor(nil),
 		},
 		{
 			plan: &plan.ProjectPlan{
@@ -162,7 +161,7 @@ func TestTask_Run(t *testing.T) {
 					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
 				},
 			},
-			value: schema.NewInMemoryRows([]*schema.Record{
+			value: schema.NewInMemoryCursor([]*schema.Record{
 				{
 					Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("id")}},
 					Values:  []driver.Value{1}},
@@ -177,7 +176,7 @@ func TestTask_Run(t *testing.T) {
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
 			},
-			value: schema.NewInMemoryRows([]*schema.Record{
+			value: schema.NewInMemoryCursor([]*schema.Record{
 				{
 					Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("id")}, {Name: sqlparser.NewColIdent("name")}},
 					Values:  []driver.Value{1, "foo"},
@@ -193,7 +192,7 @@ func TestTask_Run(t *testing.T) {
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{TableName: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}},
 			},
-			value: schema.NewInMemoryRows([]*schema.Record{
+			value: schema.NewInMemoryCursor([]*schema.Record{
 				{
 					Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("id")}, {Name: sqlparser.NewColIdent("name")}},
 					Values:  []driver.Value{1, "foo"},
@@ -213,7 +212,7 @@ func TestTask_Run(t *testing.T) {
 					&sqlparser.Order{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}, Direction: sqlparser.DescScr},
 				},
 			},
-			value: schema.NewInMemoryRows([]*schema.Record{
+			value: schema.NewInMemoryCursor([]*schema.Record{
 				{
 					Columns: []*sqlparser.ColName{
 						{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
@@ -232,7 +231,7 @@ func TestTask_Run(t *testing.T) {
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Limit: &sqlparser.Limit{Offset: sqlparser.NewIntVal([]byte("0")), Rowcount: sqlparser.NewIntVal([]byte("1"))},
 			},
-			value: schema.NewInMemoryRows([]*schema.Record{
+			value: schema.NewInMemoryCursor([]*schema.Record{
 				{
 					Columns: []*sqlparser.ColName{
 						{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},

@@ -8,23 +8,16 @@ import (
 	"github.com/xwb1989/sqlparser"
 )
 
-type Rows interface {
-	driver.Rows
-	IDs() []ID
-}
-
 type InMemoryRows struct {
 	columns []string
-	ids     [][]ID
 	values  [][]driver.Value
 	offset  int
 }
 
-var _ Rows = (*InMemoryRows)(nil)
+var _ driver.Rows = (*InMemoryRows)(nil)
 
 func NewInMemoryRows(records []*Record) *InMemoryRows {
 	var columns []string
-	var ids [][]ID
 	var values [][]driver.Value
 	for _, row := range records {
 		idx := map[string]int{}
@@ -34,8 +27,6 @@ func NewInMemoryRows(records []*Record) *InMemoryRows {
 				columns = append(columns, sqlparser.String(col))
 			}
 		}
-
-		ids = append(ids, row.IDs)
 
 		var vals []driver.Value
 		for _, col := range columns {
@@ -50,20 +41,12 @@ func NewInMemoryRows(records []*Record) *InMemoryRows {
 
 	return &InMemoryRows{
 		columns: columns,
-		ids:     ids,
 		values:  values,
 	}
 }
 
 func (r *InMemoryRows) Columns() []string {
 	return r.columns
-}
-
-func (r *InMemoryRows) IDs() []ID {
-	if r.offset >= len(r.ids) {
-		return nil
-	}
-	return r.ids[r.offset]
 }
 
 func (r *InMemoryRows) Next(dest []driver.Value) error {

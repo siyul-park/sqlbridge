@@ -9,7 +9,14 @@ type InMemoryResult struct {
 
 var _ driver.Result = (*InMemoryResult)(nil)
 
-func NewInMemoryResult(lastInsertID, rowsAffected int64) *InMemoryResult {
+func NewInMemoryResult(records []*Record) *InMemoryResult {
+	var lastInsertID int64
+	for i := len(records) - 1; i >= 0; i-- {
+		if ids := records[i].IDs; len(ids) > 0 {
+			lastInsertID = ids[len(ids)-1].Value
+		}
+	}
+	rowsAffected := int64(len(records))
 	return &InMemoryResult{lastInsertID, rowsAffected}
 }
 

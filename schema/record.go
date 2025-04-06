@@ -2,9 +2,6 @@ package schema
 
 import (
 	"database/sql/driver"
-	"errors"
-	"io"
-	"strings"
 
 	"github.com/xwb1989/sqlparser"
 )
@@ -13,34 +10,6 @@ type Record struct {
 	IDs     []ID
 	Columns []*sqlparser.ColName
 	Values  []driver.Value
-}
-
-func ReadAll(rows Rows) ([]*Record, error) {
-	var records []*Record
-	for {
-		record := &Record{IDs: rows.IDs()}
-
-		for _, col := range rows.Columns() {
-			tokens := strings.Split(col, ".")
-			column := &sqlparser.ColName{}
-			column.Name = sqlparser.NewColIdent(tokens[len(tokens)-1])
-			if len(tokens) > 1 {
-				column.Qualifier = sqlparser.TableName{Name: sqlparser.NewTableIdent(tokens[0])}
-			}
-			record.Columns = append(record.Columns, column)
-		}
-
-		record.Values = make([]driver.Value, len(record.Columns))
-		if err := rows.Next(record.Values); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return nil, err
-		}
-
-		records = append(records, record)
-	}
-	return records, nil
 }
 
 func (r *Record) Get(key *sqlparser.ColName) (driver.Value, bool) {
@@ -60,4 +29,18 @@ func (r *Record) Range() func(func(col *sqlparser.ColName, val driver.Value) boo
 			}
 		}
 	}
+}
+
+func (r *Record) Copy() *Record {
+	c := &Record{}
+	if len(r.IDs) > 0 {
+		c.IDs = append(c.IDs, r.IDs...)
+	}
+	if len(r.Columns) > 0 {
+		c.Columns = append(c.Columns, r.Columns...)
+	}
+	if len(r.Values) > 0 {
+		c.Values = append(c.Values, r.Values...)
+	}
+	return c
 }
