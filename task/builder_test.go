@@ -85,10 +85,7 @@ func TestTask_Run(t *testing.T) {
 		},
 		{
 			plan: &plan.FilterPlan{
-				Input: &plan.AliasPlan{
-					Input: &plan.ScanPlan{Table: t1},
-					Alias: sqlparser.NewTableIdent("t1"),
-				},
+				Input: &plan.AliasPlan{Input: &plan.ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
 				Expr: &sqlparser.ComparisonExpr{
 					Operator: sqlparser.EqualStr,
 					Left:     &sqlparser.ColName{Name: sqlparser.NewColIdent("id")},
@@ -104,6 +101,43 @@ func TestTask_Run(t *testing.T) {
 				},
 			},
 			value: schema.NewInMemoryRows(nil, nil),
+		},
+		{
+			plan: &plan.ProjectPlan{
+				Input: &plan.AliasPlan{Input: &plan.ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
+				Exprs: sqlparser.SelectExprs{
+					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
+				},
+			},
+			task: &ProjectTask{
+				Input: &AliasTask{Input: &ScanTask{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
+				Exprs: sqlparser.SelectExprs{
+					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
+				},
+			},
+			value: schema.NewInMemoryRows([][]string{{"id"}}, [][]driver.Value{{1}}),
+		},
+		{
+			plan: &plan.ProjectPlan{
+				Input: &plan.AliasPlan{Input: &plan.ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
+				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
+			},
+			task: &ProjectTask{
+				Input: &AliasTask{Input: &ScanTask{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
+				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
+			},
+			value: schema.NewInMemoryRows([][]string{{"id", "name"}}, [][]driver.Value{{1, "foo"}}),
+		},
+		{
+			plan: &plan.ProjectPlan{
+				Input: &plan.AliasPlan{Input: &plan.ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
+				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{TableName: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}},
+			},
+			task: &ProjectTask{
+				Input: &AliasTask{Input: &ScanTask{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
+				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{TableName: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}},
+			},
+			value: schema.NewInMemoryRows([][]string{{"id", "name"}}, [][]driver.Value{{1, "foo"}}),
 		},
 	}
 

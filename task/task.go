@@ -220,3 +220,74 @@ func (t *FilterTask) Run(ctx context.Context) (driver.Value, error) {
 
 	return schema.NewInMemoryRows(columns, values), nil
 }
+
+type ProjectTask struct {
+	Input Task
+	Exprs sqlparser.SelectExprs
+}
+
+var _ Task = (*ProjectTask)(nil)
+
+func (t *ProjectTask) Run(ctx context.Context) (driver.Value, error) {
+	val, err := t.Input.Run(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, ok := val.(driver.Rows)
+	if !ok {
+		return nil, NewErrUnsupportedType(val)
+	}
+	columns, values, err := schema.ReadAll(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < len(columns); i++ {
+		record := map[string]driver.Value{}
+		for j := range columns {
+			record[columns[i][j]] = values[i][j]
+		}
+
+		var cols []string
+		var vals []driver.Value
+		for _, expr := range t.Exprs {
+			switch expr := expr.(type) {
+			case *sqlparser.StarExpr:
+				for j := 0; j < len(columns[i]); j++ {
+					col := columns[i][j]
+					val := values[i][j]
+
+					if !expr.TableName.IsEmpty() && !strings.HasPrefix(col, expr.TableName.Name.CompliantName()+".") {
+						continue
+					}
+
+					parts := strings.Split(col, ".")
+					col = parts[len(parts)-1]
+
+					cols = append(cols, col)
+					vals = append(vals, val)
+				}
+			case *sqlparser.AliasedExpr:
+				col := sqlparser.String(expr.Expr)
+				if !expr.As.IsEmpty() {
+					col = expr.As.String()
+				}
+
+				val, err := vm.Eval(record, expr.Expr)
+				if err != nil {
+					return nil, err
+				}
+
+				cols = append(cols, col)
+				vals = append(vals, val)
+			default:
+				return nil, NewErrUnsupportedValue(expr)
+			}
+		}
+
+		columns[i] = cols
+		values[i] = vals
+	}
+
+	return schema.NewInMemoryRows(columns, values), nil
+}

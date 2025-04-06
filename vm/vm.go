@@ -6,6 +6,7 @@ import (
 	"github.com/xwb1989/sqlparser"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 type VM struct {
@@ -153,13 +154,22 @@ func (vm *VM) evalBoolVal(expr sqlparser.BoolVal) (driver.Value, error) {
 }
 
 func (vm *VM) evalColName(expr *sqlparser.ColName) (driver.Value, error) {
-	if val, ok := vm.record[expr.Name.String()]; ok {
+	column := expr.Name.String()
+	if !expr.Qualifier.IsEmpty() {
+		column = expr.Qualifier.Name.CompliantName() + "." + column
+	}
+
+	if val, ok := vm.record[column]; ok {
 		return val, nil
 	}
-	if !expr.Qualifier.IsEmpty() {
-		if val, ok := vm.record[expr.Qualifier.Name.CompliantName()+"."+expr.Name.String()]; ok {
-			return val, nil
+
+	if expr.Qualifier.IsEmpty() {
+		for col, val := range vm.record {
+			if parts := strings.Split(col, "."); parts[len(parts)-1] == column {
+				return val, nil
+			}
 		}
 	}
+
 	return nil, nil
 }

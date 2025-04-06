@@ -24,6 +24,8 @@ func (b *Builder) Build(p plan.Plan) (Task, error) {
 		return b.buildJoinPlan(p)
 	case *plan.FilterPlan:
 		return b.buildFilterPlan(p)
+	case *plan.ProjectPlan:
+		return b.buildProjectPlan(p)
 	default:
 		return nil, driver.ErrSkip
 	}
@@ -63,4 +65,12 @@ func (b *Builder) buildFilterPlan(p *plan.FilterPlan) (Task, error) {
 		return nil, err
 	}
 	return &FilterTask{Input: input, Expr: p.Expr}, nil
+}
+
+func (b *Builder) buildProjectPlan(p *plan.ProjectPlan) (Task, error) {
+	input, err := b.Build(p.Input)
+	if err != nil {
+		return nil, err
+	}
+	return &ProjectTask{Input: input, Exprs: p.Exprs}, nil
 }
