@@ -27,7 +27,7 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Connection{planner: plan.NewPlanner(catalog), builder: task.NewBuilder()}, nil
+	return &Connection{planner: plan.NewPlanner(), builder: task.NewBuilder(catalog)}, nil
 }
 
 func (d *Driver) OpenConnector(name string) (driver.Connector, error) {

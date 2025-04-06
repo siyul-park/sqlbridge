@@ -3,18 +3,14 @@ package plan
 import (
 	"database/sql/driver"
 
-	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser"
 )
 
 type Planner struct {
-	catalog schema.Catalog
 }
 
-func NewPlanner(catalog schema.Catalog) *Planner {
-	return &Planner{
-		catalog: catalog,
-	}
+func NewPlanner() *Planner {
+	return &Planner{}
 }
 
 func (p *Planner) Plan(node sqlparser.SQLNode) (Plan, error) {
@@ -232,9 +228,5 @@ func (p *Planner) planJoinTableExpr(n *sqlparser.JoinTableExpr) (Plan, error) {
 }
 
 func (p *Planner) planTableName(node sqlparser.TableName) (Plan, error) {
-	table, err := p.catalog.Table(node.Name.CompliantName())
-	if err != nil {
-		return nil, err
-	}
-	return &ScanPlan{Table: table}, nil
+	return &ScanPlan{Table: node}, nil
 }

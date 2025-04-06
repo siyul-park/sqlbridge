@@ -25,13 +25,18 @@ func (t *NopTask) Run(_ context.Context) (driver.Value, error) {
 }
 
 type ScanTask struct {
-	Table schema.Table
+	Catalog schema.Catalog
+	Table   sqlparser.TableName
 }
 
 var _ Task = (*NopTask)(nil)
 
 func (t *ScanTask) Run(ctx context.Context) (driver.Value, error) {
-	return t.Table.Scan(ctx)
+	table, err := t.Catalog.Table(t.Table.Name.CompliantName())
+	if err != nil {
+		return nil, err
+	}
+	return table.Scan(ctx)
 }
 
 type AliasTask struct {

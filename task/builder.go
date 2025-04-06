@@ -3,14 +3,17 @@ package task
 import (
 	"database/sql/driver"
 
+	"github.com/siyul-park/sqlbridge/schema"
+
 	"github.com/siyul-park/sqlbridge/plan"
 )
 
 type Builder struct {
+	catalog schema.Catalog
 }
 
-func NewBuilder() *Builder {
-	return &Builder{}
+func NewBuilder(catalog schema.Catalog) *Builder {
+	return &Builder{catalog: catalog}
 }
 
 func (b *Builder) Build(p plan.Plan) (Task, error) {
@@ -41,7 +44,7 @@ func (b *Builder) buildNopPlan(_ *plan.NopPlan) (Task, error) {
 }
 
 func (b *Builder) buildScanPlan(p *plan.ScanPlan) (Task, error) {
-	return &ScanTask{Table: p.Table}, nil
+	return &ScanTask{Catalog: b.catalog, Table: p.Table}, nil
 }
 
 func (b *Builder) buildAliasPlan(p *plan.AliasPlan) (Task, error) {

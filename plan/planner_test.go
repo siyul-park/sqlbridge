@@ -3,19 +3,11 @@ package plan
 import (
 	"testing"
 
-	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/stretchr/testify/require"
 	"github.com/xwb1989/sqlparser"
 )
 
 func TestPlanner_Plan(t *testing.T) {
-	t1 := schema.NewInMemoryTable(nil, nil)
-	t2 := schema.NewInMemoryTable(nil, nil)
-
-	catalog := schema.NewInMemoryCatalog(map[string]schema.Table{"t1": t1, "t2": t2})
-
-	planner := NewPlanner(catalog)
-
 	tests := []struct {
 		node sqlparser.SQLNode
 		plan Plan
@@ -30,7 +22,7 @@ func TestPlanner_Plan(t *testing.T) {
 				},
 			},
 			plan: &ProjectPlan{
-				Input: &AliasPlan{Input: &ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
+				Input: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Exprs: sqlparser.SelectExprs{
 					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
 				},
@@ -55,7 +47,7 @@ func TestPlanner_Plan(t *testing.T) {
 			},
 			plan: &ProjectPlan{
 				Input: &FilterPlan{
-					Input: &AliasPlan{Input: &ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
+					Input: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 					Expr: &sqlparser.ComparisonExpr{
 						Operator: sqlparser.GreaterThanStr,
 						Left:     &sqlparser.ColName{Name: sqlparser.NewColIdent("age")},
@@ -90,7 +82,7 @@ func TestPlanner_Plan(t *testing.T) {
 			},
 			plan: &FilterPlan{
 				Input: &GroupPlan{
-					Input: &AliasPlan{Input: &ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
+					Input: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 					GroupExpr: sqlparser.GroupBy{
 						&sqlparser.ColName{Name: sqlparser.NewColIdent("name")},
 					},
@@ -123,7 +115,7 @@ func TestPlanner_Plan(t *testing.T) {
 			},
 			plan: &OrderPlan{
 				Input: &ProjectPlan{
-					Input: &AliasPlan{Input: &ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
+					Input: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 					Exprs: sqlparser.SelectExprs{
 						&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
 					},
@@ -147,7 +139,7 @@ func TestPlanner_Plan(t *testing.T) {
 			},
 			plan: &LimitPlan{
 				Input: &ProjectPlan{
-					Input: &AliasPlan{Input: &ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
+					Input: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 					Exprs: sqlparser.SelectExprs{
 						&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
 					},
@@ -163,13 +155,13 @@ func TestPlanner_Plan(t *testing.T) {
 				&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
 			},
 			plan: &JoinPlan{
-				Left:  &AliasPlan{Input: &ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
-				Right: &AliasPlan{Input: &ScanPlan{Table: t2}, Alias: sqlparser.NewTableIdent("t2")},
+				Left:  &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
+				Right: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
 			},
 		},
 		{
 			node: &sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}, As: sqlparser.NewTableIdent("t2")},
-			plan: &AliasPlan{Input: &ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t2")},
+			plan: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t2")},
 		},
 		{
 			node: &sqlparser.ParenTableExpr{
@@ -179,8 +171,8 @@ func TestPlanner_Plan(t *testing.T) {
 				},
 			},
 			plan: &JoinPlan{
-				Left:  &AliasPlan{Input: &ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
-				Right: &AliasPlan{Input: &ScanPlan{Table: t2}, Alias: sqlparser.NewTableIdent("t2")},
+				Left:  &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
+				Right: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
 			},
 		},
 		{
@@ -197,8 +189,8 @@ func TestPlanner_Plan(t *testing.T) {
 				},
 			},
 			plan: &JoinPlan{
-				Left:  &AliasPlan{Input: &ScanPlan{Table: t1}, Alias: sqlparser.NewTableIdent("t1")},
-				Right: &AliasPlan{Input: &ScanPlan{Table: t2}, Alias: sqlparser.NewTableIdent("t2")},
+				Left:  &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
+				Right: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
 				Join:  sqlparser.JoinStr,
 				On: &sqlparser.ComparisonExpr{
 					Operator: sqlparser.EqualStr,
@@ -209,12 +201,13 @@ func TestPlanner_Plan(t *testing.T) {
 		},
 		{
 			node: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")},
-			plan: &ScanPlan{Table: t1},
+			plan: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(sqlparser.String(tt.node), func(t *testing.T) {
+			planner := NewPlanner()
 			plan, err := planner.Plan(tt.node)
 			require.NoError(t, err)
 			require.Equal(t, tt.plan, plan)

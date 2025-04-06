@@ -1,7 +1,6 @@
 package plan
 
 import (
-	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser"
 )
 
@@ -18,7 +17,7 @@ func (p *NopPlan) Children() []Plan {
 }
 
 type ScanPlan struct {
-	Table schema.Table
+	Table sqlparser.TableName
 }
 
 var _ Plan = (*ScanPlan)(nil)
