@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -70,7 +71,15 @@ func (s *Statement) ExecContext(ctx context.Context, args []driver.NamedValue) (
 	if err != nil {
 		return nil, err
 	}
-	return schema.NewInMemoryResult(records), nil
+
+	var lastInsertID int64
+	for i := len(records) - 1; i >= 0; i-- {
+		if ids := records[i].IDs; len(ids) > 0 {
+			lastInsertID = ids[len(ids)-1].Value
+		}
+	}
+	rowsAffected := int64(len(records))
+	return &result{lastInsertID, rowsAffected}, nil
 }
 
 func (s *Statement) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
@@ -99,7 +108,29 @@ func (s *Statement) QueryContext(ctx context.Context, args []driver.NamedValue) 
 	if err != nil {
 		return nil, err
 	}
-	return schema.NewInMemoryRows(records), nil
+
+	var columns []string
+	var values [][]driver.Value
+	for _, row := range records {
+		idx := map[string]int{}
+		for i, col := range row.Columns {
+			idx[sqlparser.String(col)] = i
+			if !slices.Contains(columns, sqlparser.String(col)) {
+				columns = append(columns, sqlparser.String(col))
+			}
+		}
+
+		var vals []driver.Value
+		for _, col := range columns {
+			if i, ok := idx[col]; !ok {
+				vals = append(vals, nil)
+			} else {
+				vals = append(vals, row.Values[i])
+			}
+		}
+		values = append(values, vals)
+	}
+	return &rows{columns: columns, values: values}, nil
 }
 
 func (s *Statement) Close() error {
