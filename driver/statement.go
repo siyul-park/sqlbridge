@@ -12,29 +12,29 @@ import (
 	"github.com/xwb1989/sqlparser"
 )
 
-type Statement struct {
+type statement struct {
 	builder *task.Builder
 	plan    plan.Plan
 	binds   map[string]struct{}
 }
 
-var _ driver.Stmt = (*Statement)(nil)
-var _ driver.StmtExecContext = (*Statement)(nil)
-var _ driver.StmtQueryContext = (*Statement)(nil)
+var _ driver.Stmt = (*statement)(nil)
+var _ driver.StmtExecContext = (*statement)(nil)
+var _ driver.StmtQueryContext = (*statement)(nil)
 
-func (s *Statement) NumInput() int {
+func (s *statement) NumInput() int {
 	return len(s.binds)
 }
 
-func (s *Statement) Exec(args []driver.Value) (driver.Result, error) {
+func (s *statement) Exec(args []driver.Value) (driver.Result, error) {
 	return s.ExecContext(context.Background(), s.named(args))
 }
 
-func (s *Statement) Query(args []driver.Value) (driver.Rows, error) {
+func (s *statement) Query(args []driver.Value) (driver.Rows, error) {
 	return s.QueryContext(context.Background(), s.named(args))
 }
 
-func (s *Statement) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
+func (s *statement) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
 	t, err := s.builder.Build(s.plan, args...)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func (s *Statement) ExecContext(ctx context.Context, args []driver.NamedValue) (
 	return &result{0, int64(len(records))}, nil
 }
 
-func (s *Statement) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+func (s *statement) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
 	t, err := s.builder.Build(s.plan, args...)
 	if err != nil {
 		return nil, err
@@ -93,11 +93,11 @@ func (s *Statement) QueryContext(ctx context.Context, args []driver.NamedValue) 
 	return &rows{columns: columns, values: values}, nil
 }
 
-func (s *Statement) Close() error {
+func (s *statement) Close() error {
 	return nil
 }
 
-func (s *Statement) named(args []driver.Value) []driver.NamedValue {
+func (s *statement) named(args []driver.Value) []driver.NamedValue {
 	value := make([]driver.NamedValue, 0, len(args))
 	for i, arg := range args {
 		value = append(value, driver.NamedValue{Name: fmt.Sprintf("v%d", i), Value: arg})

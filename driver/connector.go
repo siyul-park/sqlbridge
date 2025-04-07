@@ -5,14 +5,14 @@ import (
 	"database/sql/driver"
 )
 
-type Connector struct {
+type connector struct {
 	name   string
 	driver *Driver
 }
 
-var _ driver.Connector = (*Connector)(nil)
+var _ driver.Connector = (*connector)(nil)
 
-func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
+func (c *connector) Connect(ctx context.Context) (driver.Conn, error) {
 	conn, err := c.driver.Open(c.name)
 	if err != nil {
 		return nil, err
@@ -27,6 +27,6 @@ func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
 	}
 }
 
-func (c *Connector) Driver() driver.Driver {
+func (c *connector) Driver() driver.Driver {
 	return c.driver
 }

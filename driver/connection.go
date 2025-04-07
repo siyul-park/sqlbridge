@@ -12,41 +12,41 @@ import (
 	"github.com/siyul-park/sqlbridge/task"
 )
 
-type Connection struct {
+type connection struct {
 	planner *plan.Planner
 	builder *task.Builder
 }
 
-var _ driver.Conn = (*Connection)(nil)
-var _ driver.Pinger = (*Connection)(nil)
-var _ driver.Validator = (*Connection)(nil)
-var _ driver.SessionResetter = (*Connection)(nil)
-var _ driver.ExecerContext = (*Connection)(nil)
-var _ driver.QueryerContext = (*Connection)(nil)
-var _ driver.ConnPrepareContext = (*Connection)(nil)
-var _ driver.ConnBeginTx = (*Connection)(nil)
+var _ driver.Conn = (*connection)(nil)
+var _ driver.Pinger = (*connection)(nil)
+var _ driver.Validator = (*connection)(nil)
+var _ driver.SessionResetter = (*connection)(nil)
+var _ driver.ExecerContext = (*connection)(nil)
+var _ driver.QueryerContext = (*connection)(nil)
+var _ driver.ConnPrepareContext = (*connection)(nil)
+var _ driver.ConnBeginTx = (*connection)(nil)
 
-func (c *Connection) Prepare(query string) (driver.Stmt, error) {
+func (c *connection) Prepare(query string) (driver.Stmt, error) {
 	return c.PrepareContext(context.Background(), query)
 }
 
-func (c *Connection) Begin() (driver.Tx, error) {
+func (c *connection) Begin() (driver.Tx, error) {
 	return c.BeginTx(context.Background(), driver.TxOptions{})
 }
 
-func (c *Connection) Ping(_ context.Context) error {
+func (c *connection) Ping(_ context.Context) error {
 	return nil
 }
 
-func (c *Connection) ResetSession(_ context.Context) error {
+func (c *connection) ResetSession(_ context.Context) error {
 	return nil
 }
 
-func (c *Connection) IsValid() bool {
+func (c *connection) IsValid() bool {
 	return true
 }
 
-func (c *Connection) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+func (c *connection) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
 	stmt, err := c.PrepareContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func (c *Connection) ExecContext(ctx context.Context, query string, args []drive
 	return stmt.(driver.StmtExecContext).ExecContext(ctx, args)
 }
 
-func (c *Connection) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+func (c *connection) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
 	stmt, err := c.PrepareContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -66,7 +66,7 @@ func (c *Connection) QueryContext(ctx context.Context, query string, args []driv
 	return stmt.(driver.StmtQueryContext).QueryContext(ctx, args)
 }
 
-func (c *Connection) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
+func (c *connection) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -91,14 +91,14 @@ func (c *Connection) PrepareContext(ctx context.Context, query string) (driver.S
 		if err != nil {
 			return nil, err
 		}
-		return &Statement{builder: c.builder, plan: p, binds: binds}, nil
+		return &statement{builder: c.builder, plan: p, binds: binds}, nil
 	}
 }
 
-func (c *Connection) BeginTx(_ context.Context, _ driver.TxOptions) (driver.Tx, error) {
+func (c *connection) BeginTx(_ context.Context, _ driver.TxOptions) (driver.Tx, error) {
 	return nil, driver.ErrSkip
 }
 
-func (c *Connection) Close() error {
+func (c *connection) Close() error {
 	return nil
 }
