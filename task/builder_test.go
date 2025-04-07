@@ -9,6 +9,7 @@ import (
 
 	"github.com/siyul-park/sqlbridge/plan"
 	"github.com/siyul-park/sqlbridge/schema"
+	"github.com/siyul-park/sqlbridge/vm"
 	"github.com/stretchr/testify/require"
 	"github.com/xwb1989/sqlparser"
 )
@@ -80,6 +81,7 @@ func TestTask_Run(t *testing.T) {
 				Right: &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
 			},
 			task: &JoinTask{
+				VM:    vm.New(),
 				Left:  &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Right: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
 			},
@@ -106,6 +108,7 @@ func TestTask_Run(t *testing.T) {
 				},
 			},
 			task: &JoinTask{
+				VM:    vm.New(),
 				Left:  &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Right: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
 				On: &sqlparser.ComparisonExpr{
@@ -123,6 +126,7 @@ func TestTask_Run(t *testing.T) {
 				Using: []sqlparser.ColIdent{sqlparser.NewColIdent("id")},
 			},
 			task: &JoinTask{
+				VM:    vm.New(),
 				Left:  &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Right: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
 				Using: []sqlparser.ColIdent{sqlparser.NewColIdent("id")},
@@ -139,6 +143,7 @@ func TestTask_Run(t *testing.T) {
 				},
 			},
 			task: &FilterTask{
+				VM:    vm.New(),
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Expr: &sqlparser.ComparisonExpr{
 					Operator: sqlparser.EqualStr,
@@ -156,6 +161,7 @@ func TestTask_Run(t *testing.T) {
 				},
 			},
 			task: &ProjectTask{
+				VM:    vm.New(),
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Exprs: sqlparser.SelectExprs{
 					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
@@ -173,6 +179,7 @@ func TestTask_Run(t *testing.T) {
 				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
 			},
 			task: &ProjectTask{
+				VM:    vm.New(),
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
 			},
@@ -189,6 +196,7 @@ func TestTask_Run(t *testing.T) {
 				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{TableName: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}},
 			},
 			task: &ProjectTask{
+				VM:    vm.New(),
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{TableName: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}},
 			},
@@ -205,6 +213,7 @@ func TestTask_Run(t *testing.T) {
 				Exprs: sqlparser.GroupBy{&sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
 			},
 			task: &GroupTask{
+				VM:    vm.New(),
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Exprs: sqlparser.GroupBy{&sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
 			},
@@ -231,6 +240,7 @@ func TestTask_Run(t *testing.T) {
 				},
 			},
 			task: &OrderTask{
+				VM:    vm.New(),
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Orders: sqlparser.OrderBy{
 					&sqlparser.Order{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}, Direction: sqlparser.DescScr},
@@ -252,6 +262,7 @@ func TestTask_Run(t *testing.T) {
 				Limit: &sqlparser.Limit{Offset: sqlparser.NewIntVal([]byte("0")), Rowcount: sqlparser.NewIntVal([]byte("1"))},
 			},
 			task: &LimitTask{
+				VM:    vm.New(),
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Limit: &sqlparser.Limit{Offset: sqlparser.NewIntVal([]byte("0")), Rowcount: sqlparser.NewIntVal([]byte("1"))},
 			},

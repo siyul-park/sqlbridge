@@ -3,6 +3,10 @@ package driver
 import (
 	"context"
 	"database/sql/driver"
+	"fmt"
+	"strings"
+
+	"github.com/xwb1989/sqlparser"
 
 	"github.com/siyul-park/sqlbridge/plan"
 	"github.com/siyul-park/sqlbridge/task"
@@ -67,7 +71,27 @@ func (c *Connection) PrepareContext(ctx context.Context, query string) (driver.S
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
-		return &Statement{planner: c.planner, builder: c.builder, query: query}, nil
+		var idx int
+		var buf strings.Builder
+		for i := 0; i < len(query); i++ {
+			if query[i] == '?' {
+				idx++
+				buf.WriteString(fmt.Sprintf(":v%d", idx))
+			} else {
+				buf.WriteByte(query[i])
+			}
+		}
+
+		stmt, err := sqlparser.Parse(buf.String())
+		if err != nil {
+			return nil, err
+		}
+		binds := sqlparser.GetBindvars(stmt)
+		p, err := c.planner.Plan(stmt)
+		if err != nil {
+			return nil, err
+		}
+		return &Statement{builder: c.builder, plan: p, binds: binds}, nil
 	}
 }
 

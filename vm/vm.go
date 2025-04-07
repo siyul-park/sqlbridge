@@ -11,36 +11,32 @@ import (
 )
 
 type VM struct {
-	record schema.Record
+	args []driver.NamedValue
 }
 
-func Eval(record schema.Record, expr sqlparser.Expr) (driver.Value, error) {
-	return New(record).Eval(expr)
+func New(args ...driver.NamedValue) *VM {
+	return &VM{args: args}
 }
 
-func New(record schema.Record) *VM {
-	return &VM{record: record}
-}
-
-func (vm *VM) Eval(expr sqlparser.Expr) (driver.Value, error) {
+func (vm *VM) Eval(record schema.Record, expr sqlparser.Expr) (driver.Value, error) {
 	switch expr := expr.(type) {
 	case *sqlparser.AndExpr:
 	case *sqlparser.OrExpr:
 	case *sqlparser.NotExpr:
 	case *sqlparser.ParenExpr:
 	case *sqlparser.ComparisonExpr:
-		return vm.evalComparisonExpr(expr)
+		return vm.evalComparisonExpr(record, expr)
 	case *sqlparser.RangeCond:
 	case *sqlparser.IsExpr:
 	case *sqlparser.ExistsExpr:
 	case *sqlparser.SQLVal:
-		return vm.evalSQLVal(expr)
+		return vm.evalSQLVal(record, expr)
 	case *sqlparser.NullVal:
-		return vm.evalNullVal(expr)
+		return vm.evalNullVal(record, expr)
 	case sqlparser.BoolVal:
-		return vm.evalBoolVal(expr)
+		return vm.evalBoolVal(record, expr)
 	case *sqlparser.ColName:
-		return vm.evalColName(expr)
+		return vm.evalColName(record, expr)
 	case sqlparser.ValTuple:
 	case sqlparser.ListArg:
 	case *sqlparser.BinaryExpr:
@@ -60,13 +56,13 @@ func (vm *VM) Eval(expr sqlparser.Expr) (driver.Value, error) {
 	return nil, driver.ErrSkip
 }
 
-func (vm *VM) evalComparisonExpr(expr *sqlparser.ComparisonExpr) (driver.Value, error) {
-	left, err := vm.Eval(expr.Left)
+func (vm *VM) evalComparisonExpr(record schema.Record, expr *sqlparser.ComparisonExpr) (driver.Value, error) {
+	left, err := vm.Eval(record, expr.Left)
 	if err != nil {
 		return nil, err
 	}
 
-	right, err := vm.Eval(expr.Right)
+	right, err := vm.Eval(record, expr.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +93,7 @@ func (vm *VM) evalComparisonExpr(expr *sqlparser.ComparisonExpr) (driver.Value, 
 	return nil, driver.ErrSkip
 }
 
-func (vm *VM) evalSQLVal(expr *sqlparser.SQLVal) (driver.Value, error) {
+func (vm *VM) evalSQLVal(_ schema.Record, expr *sqlparser.SQLVal) (driver.Value, error) {
 	switch expr.Type {
 	case sqlparser.StrVal:
 		return string(expr.Val), nil
@@ -126,6 +122,15 @@ func (vm *VM) evalSQLVal(expr *sqlparser.SQLVal) (driver.Value, error) {
 		}
 		return v, nil
 	case sqlparser.ValArg:
+		if len(expr.Val) == 1 {
+			return nil, driver.ErrSkip
+		}
+		for _, arg := range vm.args {
+			if arg.Name == string(expr.Val[1:]) {
+				return arg.Value, nil
+			}
+		}
+		return nil, nil
 	case sqlparser.BitVal:
 		var buf []byte
 		for i := len(string(expr.Val)); i > 0; i -= 8 {
@@ -146,15 +151,15 @@ func (vm *VM) evalSQLVal(expr *sqlparser.SQLVal) (driver.Value, error) {
 	return nil, driver.ErrSkip
 }
 
-func (vm *VM) evalNullVal(_ *sqlparser.NullVal) (driver.Value, error) {
+func (vm *VM) evalNullVal(_ schema.Record, _ *sqlparser.NullVal) (driver.Value, error) {
 	return nil, nil
 }
 
-func (vm *VM) evalBoolVal(expr sqlparser.BoolVal) (driver.Value, error) {
+func (vm *VM) evalBoolVal(_ schema.Record, expr sqlparser.BoolVal) (driver.Value, error) {
 	return bool(expr), nil
 }
 
-func (vm *VM) evalColName(expr *sqlparser.ColName) (driver.Value, error) {
-	val, _ := vm.record.Get(expr)
+func (vm *VM) evalColName(record schema.Record, expr *sqlparser.ColName) (driver.Value, error) {
+	val, _ := record.Get(expr)
 	return val, nil
 }

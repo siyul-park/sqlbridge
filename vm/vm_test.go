@@ -13,6 +13,7 @@ import (
 func TestVM_Eval(t *testing.T) {
 	tests := []struct {
 		record schema.Record
+		args   []driver.NamedValue
 		expr   sqlparser.Expr
 		value  driver.Value
 	}{
@@ -53,6 +54,11 @@ func TestVM_Eval(t *testing.T) {
 			value: []byte{0xff},
 		},
 		{
+			expr:  sqlparser.NewValArg([]byte(":foo")),
+			args:  []driver.NamedValue{{Name: "foo", Value: "foo"}},
+			value: "foo",
+		},
+		{
 			expr:  sqlparser.NewBitVal([]byte("10")),
 			value: []byte{0x2},
 		},
@@ -79,8 +85,8 @@ func TestVM_Eval(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(sqlparser.String(tt.expr), func(t *testing.T) {
-			vm := New(tt.record)
-			val, err := vm.Eval(tt.expr)
+			vm := New(tt.args...)
+			val, err := vm.Eval(tt.record, tt.expr)
 			require.NoError(t, err)
 			require.Equal(t, tt.value, val)
 		})
