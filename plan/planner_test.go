@@ -80,21 +80,23 @@ func TestPlanner_Plan(t *testing.T) {
 					},
 				},
 			},
-			plan: &FilterPlan{
-				Input: &GroupPlan{
-					Input: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
-					GroupExpr: sqlparser.GroupBy{
-						&sqlparser.ColName{Name: sqlparser.NewColIdent("name")},
+			plan: &ProjectPlan{
+				Input: &FilterPlan{
+					Input: &GroupPlan{
+						Input: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
+						Exprs: sqlparser.GroupBy{
+							&sqlparser.ColName{Name: sqlparser.NewColIdent("name")},
+						},
 					},
-					SelectExprs: sqlparser.SelectExprs{
-						&sqlparser.AliasedExpr{Expr: &sqlparser.FuncExpr{Name: sqlparser.NewColIdent("COUNT"), Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}}}},
-						&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("name")}},
+					Expr: &sqlparser.ComparisonExpr{
+						Left:     &sqlparser.FuncExpr{Name: sqlparser.NewColIdent("COUNT"), Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}}},
+						Operator: sqlparser.GreaterEqualStr,
+						Right:    sqlparser.NewIntVal([]byte("10")),
 					},
 				},
-				Expr: &sqlparser.ComparisonExpr{
-					Left:     &sqlparser.FuncExpr{Name: sqlparser.NewColIdent("COUNT"), Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}}},
-					Operator: sqlparser.GreaterEqualStr,
-					Right:    sqlparser.NewIntVal([]byte("10")),
+				Exprs: sqlparser.SelectExprs{
+					&sqlparser.AliasedExpr{Expr: &sqlparser.FuncExpr{Name: sqlparser.NewColIdent("COUNT"), Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}}}},
+					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("name")}},
 				},
 			},
 		},

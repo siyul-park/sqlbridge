@@ -120,18 +120,19 @@ func (p *Planner) planSelect(n *sqlparser.Select) (Plan, error) {
 
 	if len(n.GroupBy) > 0 {
 		input = &GroupPlan{
-			Input:       input,
-			GroupExpr:   n.GroupBy,
-			SelectExprs: n.SelectExprs,
+			Input: input,
+			Exprs: n.GroupBy,
 		}
+	}
 
-		if n.Having != nil {
-			input = &FilterPlan{
-				Input: input,
-				Expr:  n.Having.Expr,
-			}
+	if n.Having != nil {
+		input = &FilterPlan{
+			Input: input,
+			Expr:  n.Having.Expr,
 		}
-	} else if len(n.SelectExprs) > 0 {
+	}
+
+	if len(n.SelectExprs) > 0 {
 		input = &ProjectPlan{
 			Input: input,
 			Exprs: n.SelectExprs,

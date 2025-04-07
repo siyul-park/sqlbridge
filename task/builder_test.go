@@ -200,6 +200,30 @@ func TestTask_Run(t *testing.T) {
 			}),
 		},
 		{
+			plan: &plan.GroupPlan{
+				Input: &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
+				Exprs: sqlparser.GroupBy{&sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
+			},
+			task: &GroupTask{
+				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
+				Exprs: sqlparser.GroupBy{&sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
+			},
+			value: schema.NewInMemoryCursor([]schema.Record{
+				{
+					Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("id")}, schema.GroupColumn},
+					Values: []driver.Value{1, []schema.Record{
+						{
+							Columns: []*sqlparser.ColName{
+								{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+								{Name: sqlparser.NewColIdent("name"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+							},
+							Values: []driver.Value{1, "foo"},
+						},
+					}},
+				},
+			}),
+		},
+		{
 			plan: &plan.OrderPlan{
 				Input: &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Orders: sqlparser.OrderBy{

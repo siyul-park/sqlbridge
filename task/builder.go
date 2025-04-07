@@ -30,6 +30,8 @@ func (b *Builder) Build(p plan.Plan) (Task, error) {
 		return b.buildFilterPlan(p)
 	case *plan.ProjectPlan:
 		return b.buildProjectPlan(p)
+	case *plan.GroupPlan:
+		return b.buildGroupPlan(p)
 	case *plan.OrderPlan:
 		return b.buildOrderPlan(p)
 	case *plan.LimitPlan:
@@ -81,6 +83,14 @@ func (b *Builder) buildProjectPlan(p *plan.ProjectPlan) (Task, error) {
 		return nil, err
 	}
 	return &ProjectTask{Input: input, Exprs: p.Exprs}, nil
+}
+
+func (b *Builder) buildGroupPlan(p *plan.GroupPlan) (Task, error) {
+	input, err := b.Build(p.Input)
+	if err != nil {
+		return nil, err
+	}
+	return &GroupTask{Input: input, Exprs: p.Exprs}, nil
 }
 
 func (b *Builder) buildOrderPlan(p *plan.OrderPlan) (Task, error) {

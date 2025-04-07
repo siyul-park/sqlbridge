@@ -223,10 +223,12 @@ func (t *ProjectTask) Run(ctx context.Context) (schema.Cursor, error) {
 			switch expr := expr.(type) {
 			case *sqlparser.StarExpr:
 				for i := 0; i < len(record.Columns); i++ {
+					meta, _ := record.Columns[i].Metadata.(schema.Metadata)
+
 					col := &sqlparser.ColName{Name: record.Columns[i].Name}
 					val := record.Values[i]
 
-					if !expr.TableName.IsEmpty() && record.Columns[i].Qualifier != expr.TableName {
+					if meta.Hidden && (!expr.TableName.IsEmpty() && record.Columns[i].Qualifier != expr.TableName) {
 						continue
 					}
 
@@ -255,6 +257,67 @@ func (t *ProjectTask) Run(ctx context.Context) (schema.Cursor, error) {
 		records[i] = record
 	}
 	return schema.NewInMemoryCursor(records), nil
+}
+
+type GroupTask struct {
+	Input Task
+	Exprs sqlparser.GroupBy
+}
+
+var _ Task = (*GroupTask)(nil)
+
+func (t *GroupTask) Run(ctx context.Context) (schema.Cursor, error) {
+	cursor, err := t.Input.Run(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	records, err := schema.ReadAll(cursor)
+	if err != nil {
+		return nil, err
+	}
+
+	groups := map[*schema.Record][]schema.Record{}
+	for _, record := range records {
+		key := schema.Record{Keys: record.Keys}
+		for _, expr := range t.Exprs {
+			col, ok := expr.(*sqlparser.ColName)
+			if !ok {
+				return nil, driver.ErrSkip
+			}
+
+			val, err := vm.Eval(record, expr)
+			if err != nil {
+				return nil, err
+			}
+
+			key.Columns = append(key.Columns, col)
+			key.Values = append(key.Values, val)
+		}
+
+		ok := false
+		for k := range groups {
+			if k.Equal(key) {
+				k.Keys = append(k.Keys, record.Keys...)
+				groups[k] = append(groups[k], record)
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			groups[&key] = []schema.Record{record}
+		}
+	}
+
+	var grouped []schema.Record
+	for k, group := range groups {
+		grouped = append(grouped, schema.Record{
+			Keys:    k.Keys,
+			Columns: append(k.Columns, schema.GroupColumn),
+			Values:  append(k.Values, group),
+		})
+	}
+	return schema.NewInMemoryCursor(grouped), nil
 }
 
 type OrderTask struct {

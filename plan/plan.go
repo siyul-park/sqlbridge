@@ -74,9 +74,8 @@ func (p *ProjectPlan) Children() []Plan {
 }
 
 type GroupPlan struct {
-	Input       Plan
-	GroupExpr   sqlparser.GroupBy
-	SelectExprs sqlparser.SelectExprs
+	Input Plan
+	Exprs sqlparser.GroupBy
 }
 
 var _ Plan = (*GroupPlan)(nil)
