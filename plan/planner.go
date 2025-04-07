@@ -159,9 +159,6 @@ func (p *Planner) planTableExprs(n sqlparser.TableExprs) (Plan, error) {
 	if len(n) == 0 {
 		return &NopPlan{}, nil
 	}
-	if len(n) == 1 {
-		return p.Plan(n[0])
-	}
 
 	left, err := p.Plan(n[0])
 	if err != nil {
