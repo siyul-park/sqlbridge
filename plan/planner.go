@@ -170,7 +170,7 @@ func (p *Planner) planTableExprs(n sqlparser.TableExprs) (Plan, error) {
 		if err != nil {
 			return nil, err
 		}
-		left = &JoinPlan{Left: left, Right: right}
+		left = &JoinPlan{Left: left, Right: right, Join: sqlparser.JoinStr}
 	}
 	return left, nil
 }

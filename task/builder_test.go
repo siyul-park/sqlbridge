@@ -79,11 +79,13 @@ func TestTask_Run(t *testing.T) {
 			plan: &plan.JoinPlan{
 				Left:  &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Right: &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
+				Join:  sqlparser.JoinStr,
 			},
 			task: &JoinTask{
 				VM:    vm.New(),
 				Left:  &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Right: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
+				Join:  sqlparser.JoinStr,
 			},
 			value: schema.NewInMemoryCursor([]schema.Record{
 				{
@@ -101,6 +103,7 @@ func TestTask_Run(t *testing.T) {
 			plan: &plan.JoinPlan{
 				Left:  &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Right: &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
+				Join:  sqlparser.JoinStr,
 				On: &sqlparser.ComparisonExpr{
 					Operator: sqlparser.EqualStr,
 					Left:     &sqlparser.ColName{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
@@ -111,6 +114,7 @@ func TestTask_Run(t *testing.T) {
 				VM:    vm.New(),
 				Left:  &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Right: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
+				Join:  sqlparser.JoinStr,
 				On: &sqlparser.ComparisonExpr{
 					Operator: sqlparser.EqualStr,
 					Left:     &sqlparser.ColName{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
@@ -123,12 +127,14 @@ func TestTask_Run(t *testing.T) {
 			plan: &plan.JoinPlan{
 				Left:  &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Right: &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
+				Join:  sqlparser.JoinStr,
 				Using: []sqlparser.ColIdent{sqlparser.NewColIdent("id")},
 			},
 			task: &JoinTask{
 				VM:    vm.New(),
 				Left:  &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Right: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
+				Join:  sqlparser.JoinStr,
 				Using: []sqlparser.ColIdent{sqlparser.NewColIdent("id")},
 			},
 			value: schema.NewInMemoryCursor(nil),

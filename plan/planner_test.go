@@ -159,6 +159,7 @@ func TestPlanner_Plan(t *testing.T) {
 			plan: &JoinPlan{
 				Left:  &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Right: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
+				Join:  sqlparser.JoinStr,
 			},
 		},
 		{
@@ -175,6 +176,7 @@ func TestPlanner_Plan(t *testing.T) {
 			plan: &JoinPlan{
 				Left:  &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Right: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
+				Join:  sqlparser.JoinStr,
 			},
 		},
 		{

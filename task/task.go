@@ -105,7 +105,7 @@ func (t *JoinTask) Run(ctx context.Context) (schema.Cursor, error) {
 
 	var joined []schema.Record
 	switch t.Join {
-	case "", sqlparser.JoinStr:
+	case sqlparser.JoinStr:
 		for _, lhs := range left {
 			for _, rhs := range right {
 				if ok, err := t.on(lhs, rhs); err != nil {
