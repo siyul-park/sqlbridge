@@ -108,16 +108,58 @@ func (t *JoinTask) Run(ctx context.Context) (schema.Cursor, error) {
 	case sqlparser.JoinStr:
 		for _, lhs := range left {
 			for _, rhs := range right {
-				if ok, err := t.on(lhs, rhs); err != nil {
+				ok, err := t.on(lhs, rhs)
+				if err != nil {
 					return nil, err
-				} else if !ok {
-					continue
 				}
+				if ok {
+					joined = append(joined, schema.Record{
+						Keys:    append(lhs.Keys, rhs.Keys...),
+						Columns: append(lhs.Columns, rhs.Columns...),
+						Values:  append(lhs.Values, rhs.Values...),
+					})
+				}
+			}
+		}
+	case sqlparser.LeftJoinStr, sqlparser.RightJoinStr:
+		if t.Join == sqlparser.RightJoinStr {
+			right, left = left, right
+		}
 
+		var columns []*sqlparser.ColName
+		visits := map[string]struct{}{}
+		for _, row := range right {
+			for _, col := range row.Columns {
+				key := sqlparser.String(col)
+				if _, ok := visits[key]; ok {
+					columns = append(columns, col)
+					visits[key] = struct{}{}
+				}
+			}
+		}
+
+		for _, lhs := range left {
+			matched := false
+			for _, rhs := range right {
+				ok, err := t.on(lhs, rhs)
+				if err != nil {
+					return nil, err
+				}
+				if ok {
+					joined = append(joined, schema.Record{
+						Keys:    append(lhs.Keys, rhs.Keys...),
+						Columns: append(lhs.Columns, rhs.Columns...),
+						Values:  append(lhs.Values, rhs.Values...),
+					})
+					matched = true
+				}
+			}
+			if !matched {
+				values := make([]driver.Value, len(columns))
 				joined = append(joined, schema.Record{
-					Keys:    append(lhs.Keys, rhs.Keys...),
-					Columns: append(lhs.Columns, rhs.Columns...),
-					Values:  append(lhs.Values, rhs.Values...),
+					Keys:    lhs.Keys,
+					Columns: append(lhs.Columns, columns...),
+					Values:  append(lhs.Values, values...),
 				})
 			}
 		}

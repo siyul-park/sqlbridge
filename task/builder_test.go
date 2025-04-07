@@ -102,6 +102,54 @@ func TestTask_BuildAndRun(t *testing.T) {
 			plan: &plan.JoinPlan{
 				Left:  &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Right: &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
+				Join:  sqlparser.LeftJoinStr,
+			},
+			task: &JoinTask{
+				VM:    vm.New(),
+				Left:  &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
+				Right: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
+				Join:  sqlparser.LeftJoinStr,
+			},
+			value: schema.NewInMemoryCursor([]schema.Record{
+				{
+					Columns: []*sqlparser.ColName{
+						{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+						{Name: sqlparser.NewColIdent("name"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+						{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
+						{Name: sqlparser.NewColIdent("name"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
+					},
+					Values: []driver.Value{1, "foo", 2, "bar"},
+				},
+			}),
+		},
+		{
+			plan: &plan.JoinPlan{
+				Left:  &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
+				Right: &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
+				Join:  sqlparser.RightJoinStr,
+			},
+			task: &JoinTask{
+				VM:    vm.New(),
+				Left:  &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
+				Right: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
+				Join:  sqlparser.RightJoinStr,
+			},
+			value: schema.NewInMemoryCursor([]schema.Record{
+				{
+					Columns: []*sqlparser.ColName{
+						{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
+						{Name: sqlparser.NewColIdent("name"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
+						{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+						{Name: sqlparser.NewColIdent("name"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+					},
+					Values: []driver.Value{2, "bar", 1, "foo"},
+				},
+			}),
+		},
+		{
+			plan: &plan.JoinPlan{
+				Left:  &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
+				Right: &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
 				Join:  sqlparser.JoinStr,
 				On: &sqlparser.ComparisonExpr{
 					Operator: sqlparser.EqualStr,
