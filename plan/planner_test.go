@@ -122,7 +122,7 @@ func TestPlanner_Plan(t *testing.T) {
 						&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
 					},
 				},
-				Orders: sqlparser.OrderBy{
+				Exprs: sqlparser.OrderBy{
 					&sqlparser.Order{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}, Direction: sqlparser.DescScr},
 				},
 			},
@@ -146,7 +146,7 @@ func TestPlanner_Plan(t *testing.T) {
 						&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
 					},
 				},
-				Limit: &sqlparser.Limit{
+				Exprs: &sqlparser.Limit{
 					Rowcount: sqlparser.NewIntVal([]byte("10")),
 				},
 			},

@@ -141,15 +141,15 @@ func (p *Planner) planSelect(n *sqlparser.Select) (Plan, error) {
 
 	if len(n.OrderBy) > 0 {
 		input = &OrderPlan{
-			Input:  input,
-			Orders: n.OrderBy,
+			Input: input,
+			Exprs: n.OrderBy,
 		}
 	}
 
 	if n.Limit != nil {
 		input = &LimitPlan{
 			Input: input,
-			Limit: n.Limit,
+			Exprs: n.Limit,
 		}
 	}
 	return input, nil

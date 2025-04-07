@@ -325,9 +325,9 @@ func (t *GroupTask) Run(ctx context.Context) (schema.Cursor, error) {
 }
 
 type OrderTask struct {
-	VM     *vm.VM
-	Input  Task
-	Orders sqlparser.OrderBy
+	VM    *vm.VM
+	Input Task
+	Exprs sqlparser.OrderBy
 }
 
 var _ Task = (*OrderTask)(nil)
@@ -343,7 +343,7 @@ func (t *OrderTask) Run(ctx context.Context) (schema.Cursor, error) {
 		return nil, err
 	}
 
-	for _, order := range t.Orders {
+	for _, order := range t.Exprs {
 		sort.SliceStable(records, func(i, j int) bool {
 			lhs, err := t.VM.Eval(records[i], order.Expr)
 			if err != nil {
@@ -382,7 +382,7 @@ func (t *OrderTask) Run(ctx context.Context) (schema.Cursor, error) {
 type LimitTask struct {
 	VM    *vm.VM
 	Input Task
-	Limit *sqlparser.Limit
+	Exprs *sqlparser.Limit
 }
 
 var _ Task = (*LimitTask)(nil)
@@ -399,8 +399,8 @@ func (t *LimitTask) Run(ctx context.Context) (schema.Cursor, error) {
 	}
 
 	offset := 0
-	if t.Limit.Offset != nil {
-		if val, err := t.VM.Eval(schema.Record{}, t.Limit.Offset); err != nil {
+	if t.Exprs.Offset != nil {
+		if val, err := t.VM.Eval(schema.Record{}, t.Exprs.Offset); err != nil {
 			return nil, err
 		} else if v := reflect.ValueOf(val); v.CanInt() {
 			offset = int(v.Int())
@@ -408,8 +408,8 @@ func (t *LimitTask) Run(ctx context.Context) (schema.Cursor, error) {
 	}
 
 	rowcount := len(records)
-	if t.Limit.Rowcount != nil {
-		if val, err := t.VM.Eval(schema.Record{}, t.Limit.Rowcount); err != nil {
+	if t.Exprs.Rowcount != nil {
+		if val, err := t.VM.Eval(schema.Record{}, t.Exprs.Rowcount); err != nil {
 			return nil, err
 		} else if v := reflect.ValueOf(val); v.CanInt() {
 			rowcount = int(v.Int())

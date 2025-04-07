@@ -3,7 +3,6 @@ package task
 import (
 	"context"
 	"database/sql/driver"
-	"fmt"
 	"testing"
 	"time"
 
@@ -14,7 +13,7 @@ import (
 	"github.com/xwb1989/sqlparser"
 )
 
-func TestTask_Run(t *testing.T) {
+func TestTask_BuildAndRun(t *testing.T) {
 	t1 := schema.NewInMemoryTable([]schema.Record{
 		{
 			Columns: []*sqlparser.ColName{
@@ -241,14 +240,14 @@ func TestTask_Run(t *testing.T) {
 		{
 			plan: &plan.OrderPlan{
 				Input: &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
-				Orders: sqlparser.OrderBy{
+				Exprs: sqlparser.OrderBy{
 					&sqlparser.Order{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}, Direction: sqlparser.DescScr},
 				},
 			},
 			task: &OrderTask{
 				VM:    vm.New(),
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
-				Orders: sqlparser.OrderBy{
+				Exprs: sqlparser.OrderBy{
 					&sqlparser.Order{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}, Direction: sqlparser.DescScr},
 				},
 			},
@@ -265,12 +264,12 @@ func TestTask_Run(t *testing.T) {
 		{
 			plan: &plan.LimitPlan{
 				Input: &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
-				Limit: &sqlparser.Limit{Offset: sqlparser.NewIntVal([]byte("0")), Rowcount: sqlparser.NewIntVal([]byte("1"))},
+				Exprs: &sqlparser.Limit{Offset: sqlparser.NewIntVal([]byte("0")), Rowcount: sqlparser.NewIntVal([]byte("1"))},
 			},
 			task: &LimitTask{
 				VM:    vm.New(),
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
-				Limit: &sqlparser.Limit{Offset: sqlparser.NewIntVal([]byte("0")), Rowcount: sqlparser.NewIntVal([]byte("1"))},
+				Exprs: &sqlparser.Limit{Offset: sqlparser.NewIntVal([]byte("0")), Rowcount: sqlparser.NewIntVal([]byte("1"))},
 			},
 			value: schema.NewInMemoryCursor([]schema.Record{
 				{
@@ -285,7 +284,7 @@ func TestTask_Run(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(fmt.Sprintf("%v", tt.plan), func(t *testing.T) {
+		t.Run(tt.plan.String(), func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
 

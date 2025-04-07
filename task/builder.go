@@ -100,7 +100,7 @@ func (b *Builder) buildOrderPlan(p *plan.OrderPlan, args ...driver.NamedValue) (
 	if err != nil {
 		return nil, err
 	}
-	return &OrderTask{VM: vm.New(args...), Input: input, Orders: p.Orders}, nil
+	return &OrderTask{VM: vm.New(args...), Input: input, Exprs: p.Exprs}, nil
 }
 
 func (b *Builder) buildLimitPlan(p *plan.LimitPlan, args ...driver.NamedValue) (Task, error) {
@@ -108,5 +108,5 @@ func (b *Builder) buildLimitPlan(p *plan.LimitPlan, args ...driver.NamedValue) (
 	if err != nil {
 		return nil, err
 	}
-	return &LimitTask{VM: vm.New(args...), Input: input, Limit: p.Limit}, nil
+	return &LimitTask{VM: vm.New(args...), Input: input, Exprs: p.Exprs}, nil
 }
