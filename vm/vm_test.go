@@ -12,7 +12,7 @@ import (
 
 func TestVM_Eval(t *testing.T) {
 	tests := []struct {
-		record *schema.Record
+		record schema.Record
 		expr   sqlparser.Expr
 		value  driver.Value
 	}{
@@ -65,7 +65,7 @@ func TestVM_Eval(t *testing.T) {
 			value: true,
 		},
 		{
-			record: &schema.Record{
+			record: schema.Record{
 				Columns: []*sqlparser.ColName{
 					{Name: sqlparser.NewColIdent("id")},
 					{Name: sqlparser.NewColIdent("name")},

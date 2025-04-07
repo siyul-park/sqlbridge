@@ -57,11 +57,17 @@ func (t *AliasTask) Run(ctx context.Context) (schema.Cursor, error) {
 	}
 
 	if !t.Alias.IsEmpty() {
-		for i := 0; i < len(records); i++ {
-			cols := records[i].Columns
-			for _, col := range cols {
-				col.Qualifier = sqlparser.TableName{Name: t.Alias}
+		for i, record := range records {
+			columns := make([]*sqlparser.ColName, 0, len(record.Columns))
+			for _, col := range record.Columns {
+				columns = append(columns, &sqlparser.ColName{
+					Metadata:  col.Metadata,
+					Name:      col.Name,
+					Qualifier: sqlparser.TableName{Name: t.Alias},
+				})
 			}
+			record.Columns = columns
+			records[i] = record
 		}
 	}
 	return schema.NewInMemoryCursor(records), nil
@@ -96,7 +102,7 @@ func (t *JoinTask) Run(ctx context.Context) (schema.Cursor, error) {
 		return nil, err
 	}
 
-	var joined []*schema.Record
+	var joined []schema.Record
 	switch t.Join {
 	case "", sqlparser.JoinStr:
 		for _, lhs := range left {
@@ -107,8 +113,8 @@ func (t *JoinTask) Run(ctx context.Context) (schema.Cursor, error) {
 					continue
 				}
 
-				joined = append(joined, &schema.Record{
-					IDs:     append(lhs.IDs, rhs.IDs...),
+				joined = append(joined, schema.Record{
+					Keys:    append(lhs.Keys, rhs.Keys...),
 					Columns: append(lhs.Columns, rhs.Columns...),
 					Values:  append(lhs.Values, rhs.Values...),
 				})
@@ -120,9 +126,9 @@ func (t *JoinTask) Run(ctx context.Context) (schema.Cursor, error) {
 	return schema.NewInMemoryCursor(joined), nil
 }
 
-func (t *JoinTask) on(lhs, rhs *schema.Record) (bool, error) {
+func (t *JoinTask) on(lhs, rhs schema.Record) (bool, error) {
 	if t.On != nil {
-		record := &schema.Record{
+		record := schema.Record{
 			Columns: append(lhs.Columns, rhs.Columns...),
 			Values:  append(lhs.Values, rhs.Values...),
 		}
@@ -140,7 +146,7 @@ func (t *JoinTask) on(lhs, rhs *schema.Record) (bool, error) {
 		lhs, _ := lhs.Get(&sqlparser.ColName{Name: using})
 		rhs, _ := rhs.Get(&sqlparser.ColName{Name: using})
 
-		record := &schema.Record{
+		record := schema.Record{
 			Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("lhs")}, {Name: sqlparser.NewColIdent("rhs")}},
 			Values:  []driver.Value{lhs, rhs},
 		}
@@ -210,7 +216,7 @@ func (t *ProjectTask) Run(ctx context.Context) (schema.Cursor, error) {
 		return nil, err
 	}
 
-	for _, record := range records {
+	for i, record := range records {
 		var columns []*sqlparser.ColName
 		var values []driver.Value
 		for _, expr := range t.Exprs {
@@ -246,6 +252,7 @@ func (t *ProjectTask) Run(ctx context.Context) (schema.Cursor, error) {
 		}
 		record.Columns = columns
 		record.Values = values
+		records[i] = record
 	}
 	return schema.NewInMemoryCursor(records), nil
 }
@@ -289,7 +296,7 @@ func (t *OrderTask) Run(ctx context.Context) (schema.Cursor, error) {
 				cmp.Operator = sqlparser.GreaterThanStr
 			}
 
-			record := &schema.Record{
+			record := schema.Record{
 				Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("lhs")}, {Name: sqlparser.NewColIdent("rhs")}},
 				Values:  []driver.Value{lhs, rhs},
 			}
@@ -324,7 +331,7 @@ func (t *LimitTask) Run(ctx context.Context) (schema.Cursor, error) {
 
 	offset := 0
 	if t.Limit.Offset != nil {
-		if val, err := vm.Eval(nil, t.Limit.Offset); err != nil {
+		if val, err := vm.Eval(schema.Record{}, t.Limit.Offset); err != nil {
 			return nil, err
 		} else if v := reflect.ValueOf(val); v.CanInt() {
 			offset = int(v.Int())
@@ -333,7 +340,7 @@ func (t *LimitTask) Run(ctx context.Context) (schema.Cursor, error) {
 
 	rowcount := len(records)
 	if t.Limit.Rowcount != nil {
-		if val, err := vm.Eval(nil, t.Limit.Rowcount); err != nil {
+		if val, err := vm.Eval(schema.Record{}, t.Limit.Rowcount); err != nil {
 			return nil, err
 		} else if v := reflect.ValueOf(val); v.CanInt() {
 			rowcount = int(v.Int())

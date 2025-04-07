@@ -72,14 +72,7 @@ func (s *Statement) ExecContext(ctx context.Context, args []driver.NamedValue) (
 		return nil, err
 	}
 
-	var lastInsertID int64
-	for i := len(records) - 1; i >= 0; i-- {
-		if ids := records[i].IDs; len(ids) > 0 {
-			lastInsertID = ids[len(ids)-1].Value
-		}
-	}
-	rowsAffected := int64(len(records))
-	return &result{lastInsertID, rowsAffected}, nil
+	return &result{0, int64(len(records))}, nil
 }
 
 func (s *Statement) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {

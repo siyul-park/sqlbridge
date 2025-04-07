@@ -9,12 +9,12 @@ type Table interface {
 }
 
 type InMemoryTable struct {
-	records []*Record
+	records []Record
 }
 
 var _ Table = (*InMemoryTable)(nil)
 
-func NewInMemoryTable(records []*Record) *InMemoryTable {
+func NewInMemoryTable(records []Record) *InMemoryTable {
 	return &InMemoryTable{records: records}
 }
 

@@ -11,14 +11,14 @@ import (
 )
 
 type VM struct {
-	record *schema.Record
+	record schema.Record
 }
 
-func Eval(record *schema.Record, expr sqlparser.Expr) (driver.Value, error) {
+func Eval(record schema.Record, expr sqlparser.Expr) (driver.Value, error) {
 	return New(record).Eval(expr)
 }
 
-func New(record *schema.Record) *VM {
+func New(record schema.Record) *VM {
 	return &VM{record: record}
 }
 

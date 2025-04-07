@@ -7,7 +7,7 @@ import (
 )
 
 type Record struct {
-	IDs     []ID
+	Keys    []Key
 	Columns []*sqlparser.ColName
 	Values  []driver.Value
 }
@@ -29,18 +29,4 @@ func (r *Record) Range() func(func(col *sqlparser.ColName, val driver.Value) boo
 			}
 		}
 	}
-}
-
-func (r *Record) Copy() *Record {
-	c := &Record{}
-	if len(r.IDs) > 0 {
-		c.IDs = append(c.IDs, r.IDs...)
-	}
-	if len(r.Columns) > 0 {
-		c.Columns = append(c.Columns, r.Columns...)
-	}
-	if len(r.Values) > 0 {
-		c.Values = append(c.Values, r.Values...)
-	}
-	return c
 }

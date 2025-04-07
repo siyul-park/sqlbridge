@@ -6,19 +6,19 @@ import (
 )
 
 type Cursor interface {
-	Next() (*Record, error)
+	Next() (Record, error)
 	Close() error
 }
 
 type InMemoryCursor struct {
-	records []*Record
+	records []Record
 	offset  int
 }
 
 var _ Cursor = (*InMemoryCursor)(nil)
 
-func ReadAll(cursor Cursor) ([]*Record, error) {
-	var records []*Record
+func ReadAll(cursor Cursor) ([]Record, error) {
+	var records []Record
 	for {
 		record, err := cursor.Next()
 		if err != nil {
@@ -34,20 +34,20 @@ func ReadAll(cursor Cursor) ([]*Record, error) {
 	return records, nil
 }
 
-func NewInMemoryCursor(records []*Record) *InMemoryCursor {
+func NewInMemoryCursor(records []Record) *InMemoryCursor {
 	if len(records) == 0 {
 		records = nil
 	}
 	return &InMemoryCursor{records: records}
 }
 
-func (c *InMemoryCursor) Next() (*Record, error) {
+func (c *InMemoryCursor) Next() (Record, error) {
 	if c.offset >= len(c.records) {
-		return nil, io.EOF
+		return Record{}, io.EOF
 	}
 	record := c.records[c.offset]
 	c.offset++
-	return record.Copy(), nil
+	return record, nil
 }
 
 func (c *InMemoryCursor) Close() error {
