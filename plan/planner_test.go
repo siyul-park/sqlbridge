@@ -9,30 +9,24 @@ import (
 
 func TestPlanner_Plan(t *testing.T) {
 	tests := []struct {
-		node sqlparser.SQLNode
+		node sqlparser.Statement
 		plan Plan
 	}{
 		{
 			node: &sqlparser.Select{
-				SelectExprs: sqlparser.SelectExprs{
-					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
-				},
+				SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
 				From: sqlparser.TableExprs{
 					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 				},
 			},
 			plan: &ProjectPlan{
 				Input: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
-				Exprs: sqlparser.SelectExprs{
-					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
-				},
+				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
 			},
 		},
 		{
 			node: &sqlparser.Select{
-				SelectExprs: sqlparser.SelectExprs{
-					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
-				},
+				SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
 				From: sqlparser.TableExprs{
 					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 				},
@@ -54,9 +48,7 @@ func TestPlanner_Plan(t *testing.T) {
 						Right:    sqlparser.NewIntVal([]byte("18")),
 					},
 				},
-				Exprs: sqlparser.SelectExprs{
-					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
-				},
+				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
 			},
 		},
 		{
@@ -102,9 +94,7 @@ func TestPlanner_Plan(t *testing.T) {
 		},
 		{
 			node: &sqlparser.Select{
-				SelectExprs: sqlparser.SelectExprs{
-					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
-				},
+				SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
 				From: sqlparser.TableExprs{
 					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 				},
@@ -118,9 +108,7 @@ func TestPlanner_Plan(t *testing.T) {
 			plan: &OrderPlan{
 				Input: &ProjectPlan{
 					Input: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
-					Exprs: sqlparser.SelectExprs{
-						&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
-					},
+					Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
 				},
 				Exprs: sqlparser.OrderBy{
 					&sqlparser.Order{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}, Direction: sqlparser.DescScr},
@@ -129,9 +117,7 @@ func TestPlanner_Plan(t *testing.T) {
 		},
 		{
 			node: &sqlparser.Select{
-				SelectExprs: sqlparser.SelectExprs{
-					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
-				},
+				SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
 				From: sqlparser.TableExprs{
 					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 				},
@@ -142,9 +128,7 @@ func TestPlanner_Plan(t *testing.T) {
 			plan: &LimitPlan{
 				Input: &ProjectPlan{
 					Input: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
-					Exprs: sqlparser.SelectExprs{
-						&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
-					},
+					Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
 				},
 				Exprs: &sqlparser.Limit{
 					Rowcount: sqlparser.NewIntVal([]byte("10")),
@@ -152,60 +136,74 @@ func TestPlanner_Plan(t *testing.T) {
 			},
 		},
 		{
-			node: sqlparser.TableExprs{
-				&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
-				&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
-			},
-			plan: &JoinPlan{
-				Left:  &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
-				Right: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
-				Join:  sqlparser.JoinStr,
-			},
-		},
-		{
-			node: &sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}, As: sqlparser.NewTableIdent("t2")},
-			plan: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t2")},
-		},
-		{
-			node: &sqlparser.ParenTableExpr{
-				Exprs: sqlparser.TableExprs{
+			node: &sqlparser.Select{
+				SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
+				From: sqlparser.TableExprs{
 					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
 				},
 			},
-			plan: &JoinPlan{
-				Left:  &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
-				Right: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
-				Join:  sqlparser.JoinStr,
+			plan: &ProjectPlan{
+				Input: &JoinPlan{
+					Left:  &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
+					Right: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
+					Join:  sqlparser.JoinStr,
+				},
+				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
 			},
 		},
 		{
-			node: &sqlparser.JoinTableExpr{
-				LeftExpr:  &sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
-				RightExpr: &sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
-				Join:      sqlparser.JoinStr,
-				Condition: sqlparser.JoinCondition{
+			node: &sqlparser.Select{
+				SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
+				From: sqlparser.TableExprs{
+					&sqlparser.ParenTableExpr{
+						Exprs: sqlparser.TableExprs{
+							&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+							&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
+						},
+					},
+				},
+			},
+			plan: &ProjectPlan{
+				Input: &JoinPlan{
+					Left:  &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
+					Right: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
+					Join:  sqlparser.JoinStr,
+				},
+				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
+			},
+		},
+		{
+			node: &sqlparser.Select{
+				SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
+				From: sqlparser.TableExprs{
+					&sqlparser.JoinTableExpr{
+						LeftExpr:  &sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+						RightExpr: &sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
+						Join:      sqlparser.JoinStr,
+						Condition: sqlparser.JoinCondition{
+							On: &sqlparser.ComparisonExpr{
+								Operator: sqlparser.EqualStr,
+								Left:     &sqlparser.ColName{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+								Right:    &sqlparser.ColName{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
+							},
+						},
+					},
+				},
+			},
+			plan: &ProjectPlan{
+				Input: &JoinPlan{
+					Left:  &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
+					Right: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
+					Join:  sqlparser.JoinStr,
 					On: &sqlparser.ComparisonExpr{
 						Operator: sqlparser.EqualStr,
 						Left:     &sqlparser.ColName{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 						Right:    &sqlparser.ColName{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
 					},
 				},
+				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
 			},
-			plan: &JoinPlan{
-				Left:  &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
-				Right: &AliasPlan{Input: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
-				Join:  sqlparser.JoinStr,
-				On: &sqlparser.ComparisonExpr{
-					Operator: sqlparser.EqualStr,
-					Left:     &sqlparser.ColName{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
-					Right:    &sqlparser.ColName{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
-				},
-			},
-		},
-		{
-			node: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")},
-			plan: &ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 		},
 	}
 
