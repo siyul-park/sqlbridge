@@ -12,14 +12,15 @@ import (
 
 type VM struct {
 	record schema.Record
+	args   []driver.NamedValue
 }
 
-func Eval(record schema.Record, expr sqlparser.Expr) (driver.Value, error) {
-	return New(record).Eval(expr)
+func Eval(record schema.Record, expr sqlparser.Expr, args ...driver.NamedValue) (driver.Value, error) {
+	return New(record, args...).Eval(expr)
 }
 
-func New(record schema.Record) *VM {
-	return &VM{record: record}
+func New(record schema.Record, args ...driver.NamedValue) *VM {
+	return &VM{record: record, args: args}
 }
 
 func (vm *VM) Eval(expr sqlparser.Expr) (driver.Value, error) {
@@ -126,6 +127,15 @@ func (vm *VM) evalSQLVal(expr *sqlparser.SQLVal) (driver.Value, error) {
 		}
 		return v, nil
 	case sqlparser.ValArg:
+		if len(expr.Val) == 1 {
+			return nil, driver.ErrSkip
+		}
+		for _, arg := range vm.args {
+			if arg.Name == string(expr.Val[1:]) {
+				return arg.Value, nil
+			}
+		}
+		return nil, nil
 	case sqlparser.BitVal:
 		var buf []byte
 		for i := len(string(expr.Val)); i > 0; i -= 8 {
