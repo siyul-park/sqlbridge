@@ -9,15 +9,15 @@ import (
 )
 
 type Driver struct {
-	registry *schema.Registry
+	registry schema.Registry
 }
 
 var _ driver.Driver = (*Driver)(nil)
 var _ driver.DriverContext = (*Driver)(nil)
 
-func New(registry *schema.Registry) *Driver {
+func New(registry schema.Registry) *Driver {
 	if registry == nil {
-		registry = schema.NewRegistry()
+		registry = schema.NewInMemoryRegistry(nil)
 	}
 	return &Driver{registry: registry}
 }

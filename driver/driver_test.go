@@ -11,10 +11,10 @@ import (
 func TestDriver_Open(t *testing.T) {
 	name := faker.Word()
 	catalog := schema.NewInMemoryCatalog(nil)
-	registry := schema.NewRegistry()
 
-	err := registry.SetCatalog(name, catalog)
-	require.NoError(t, err)
+	registry := schema.NewInMemoryRegistry(map[string]schema.Catalog{
+		name: catalog,
+	})
 
 	drv := New(registry)
 
@@ -26,10 +26,10 @@ func TestDriver_Open(t *testing.T) {
 func TestDriver_OpenConnector(t *testing.T) {
 	name := faker.Word()
 	catalog := schema.NewInMemoryCatalog(nil)
-	registry := schema.NewRegistry()
 
-	err := registry.SetCatalog(name, catalog)
-	require.NoError(t, err)
+	registry := schema.NewInMemoryRegistry(map[string]schema.Catalog{
+		name: catalog,
+	})
 
 	drv := New(registry)
 

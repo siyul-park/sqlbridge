@@ -17,10 +17,9 @@ func TestStatement_NumInput(t *testing.T) {
 	catalog := schema.NewInMemoryCatalog(map[string]schema.Table{
 		table: schema.NewInMemoryTable(nil),
 	})
-	registry := schema.NewRegistry()
-
-	err := registry.SetCatalog(name, catalog)
-	require.NoError(t, err)
+	registry := schema.NewInMemoryRegistry(map[string]schema.Catalog{
+		name: catalog,
+	})
 
 	drv := New(registry)
 
@@ -45,10 +44,9 @@ func TestStatement_Exec(t *testing.T) {
 	catalog := schema.NewInMemoryCatalog(map[string]schema.Table{
 		table: schema.NewInMemoryTable(nil),
 	})
-	registry := schema.NewRegistry()
-
-	err := registry.SetCatalog(name, catalog)
-	require.NoError(t, err)
+	registry := schema.NewInMemoryRegistry(map[string]schema.Catalog{
+		name: catalog,
+	})
 
 	drv := New(registry)
 
@@ -72,10 +70,9 @@ func TestStatement_Query(t *testing.T) {
 	catalog := schema.NewInMemoryCatalog(map[string]schema.Table{
 		table: schema.NewInMemoryTable(nil),
 	})
-	registry := schema.NewRegistry()
-
-	err := registry.SetCatalog(name, catalog)
-	require.NoError(t, err)
+	registry := schema.NewInMemoryRegistry(map[string]schema.Catalog{
+		name: catalog,
+	})
 
 	drv := New(registry)
 
