@@ -80,6 +80,7 @@ type JoinTask struct {
 	Join  string
 	On    sqlparser.Expr
 	Using []sqlparser.ColIdent
+	Args  []driver.NamedValue
 }
 
 var _ Task = (*JoinTask)(nil)
@@ -176,11 +177,11 @@ func (t *JoinTask) on(lhs, rhs schema.Record) (bool, error) {
 			Values:  append(lhs.Values, rhs.Values...),
 		}
 
-		val, err := t.VM.Eval(record, t.On)
+		val, err := t.VM.Eval(t.On, record, t.Args...)
 		if err != nil {
 			return false, err
 		}
-		if !reflect.ValueOf(val).IsValid() || reflect.ValueOf(val).IsZero() {
+		if !t.VM.Bool(val) {
 			return false, nil
 		}
 	}
@@ -188,21 +189,7 @@ func (t *JoinTask) on(lhs, rhs schema.Record) (bool, error) {
 	for _, using := range t.Using {
 		lhs, _ := lhs.Get(&sqlparser.ColName{Name: using})
 		rhs, _ := rhs.Get(&sqlparser.ColName{Name: using})
-
-		record := schema.Record{
-			Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("lhs")}, {Name: sqlparser.NewColIdent("rhs")}},
-			Values:  []driver.Value{lhs, rhs},
-		}
-
-		val, err := t.VM.Eval(record, &sqlparser.ComparisonExpr{
-			Operator: sqlparser.EqualStr,
-			Left:     &sqlparser.ColName{Name: sqlparser.NewColIdent("lhs")},
-			Right:    &sqlparser.ColName{Name: sqlparser.NewColIdent("rhs")},
-		})
-		if err != nil {
-			return false, err
-		}
-		if !reflect.ValueOf(val).IsValid() || reflect.ValueOf(val).IsZero() {
+		if !t.VM.Equal(lhs, rhs) {
 			return false, nil
 		}
 	}
@@ -213,6 +200,7 @@ type FilterTask struct {
 	VM    *vm.VM
 	Input Task
 	Expr  sqlparser.Expr
+	Args  []driver.NamedValue
 }
 
 var _ Task = (*FilterTask)(nil)
@@ -229,12 +217,12 @@ func (t *FilterTask) Run(ctx context.Context) (schema.Cursor, error) {
 	}
 
 	for i := 0; i < len(records); i++ {
-		val, err := t.VM.Eval(records[i], t.Expr)
+		val, err := t.VM.Eval(t.Expr, records[i], t.Args...)
 		if err != nil {
 			return nil, err
 		}
 
-		if !reflect.ValueOf(val).IsValid() || reflect.ValueOf(val).IsZero() {
+		if !t.VM.Bool(val) {
 			records = append(records[:i], records[i+1:]...)
 			i--
 		}
@@ -246,6 +234,7 @@ type ProjectTask struct {
 	VM    *vm.VM
 	Input Task
 	Exprs sqlparser.SelectExprs
+	Args  []driver.NamedValue
 }
 
 var _ Task = (*ProjectTask)(nil)
@@ -286,7 +275,7 @@ func (t *ProjectTask) Run(ctx context.Context) (schema.Cursor, error) {
 					col.Name = expr.As
 				}
 
-				val, err := t.VM.Eval(record, expr.Expr)
+				val, err := t.VM.Eval(expr.Expr, record, t.Args...)
 				if err != nil {
 					return nil, err
 				}
@@ -308,6 +297,7 @@ type GroupTask struct {
 	VM    *vm.VM
 	Input Task
 	Exprs sqlparser.GroupBy
+	Args  []driver.NamedValue
 }
 
 var _ Task = (*GroupTask)(nil)
@@ -332,7 +322,7 @@ func (t *GroupTask) Run(ctx context.Context) (schema.Cursor, error) {
 				return nil, driver.ErrSkip
 			}
 
-			val, err := t.VM.Eval(record, expr)
+			val, err := t.VM.Eval(expr, record, t.Args...)
 			if err != nil {
 				return nil, err
 			}
@@ -370,6 +360,7 @@ type OrderTask struct {
 	VM    *vm.VM
 	Input Task
 	Exprs sqlparser.OrderBy
+	Args  []driver.NamedValue
 }
 
 var _ Task = (*OrderTask)(nil)
@@ -387,35 +378,21 @@ func (t *OrderTask) Run(ctx context.Context) (schema.Cursor, error) {
 
 	for _, order := range t.Exprs {
 		sort.SliceStable(records, func(i, j int) bool {
-			lhs, err := t.VM.Eval(records[i], order.Expr)
+			lhs, err := t.VM.Eval(order.Expr, records[i], t.Args...)
 			if err != nil {
 				return false
 			}
 
-			rhs, err := t.VM.Eval(records[j], order.Expr)
+			rhs, err := t.VM.Eval(order.Expr, records[j], t.Args...)
 			if err != nil {
 				return false
 			}
 
-			cmp := &sqlparser.ComparisonExpr{
-				Operator: sqlparser.LessThanStr,
-				Left:     &sqlparser.ColName{Name: sqlparser.NewColIdent("lhs")},
-				Right:    &sqlparser.ColName{Name: sqlparser.NewColIdent("rhs")},
-			}
+			cmp := t.VM.Compare(lhs, rhs)
 			if order.Direction == sqlparser.DescScr {
-				cmp.Operator = sqlparser.GreaterThanStr
+				cmp *= -1
 			}
-
-			record := schema.Record{
-				Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("lhs")}, {Name: sqlparser.NewColIdent("rhs")}},
-				Values:  []driver.Value{lhs, rhs},
-			}
-
-			val, err := t.VM.Eval(record, cmp)
-			if err != nil {
-				return false
-			}
-			return reflect.ValueOf(val).IsValid() && !reflect.ValueOf(val).IsZero()
+			return cmp < 0
 		})
 	}
 	return schema.NewInMemoryCursor(records), nil
@@ -425,6 +402,7 @@ type LimitTask struct {
 	VM    *vm.VM
 	Input Task
 	Exprs *sqlparser.Limit
+	Args  []driver.NamedValue
 }
 
 var _ Task = (*LimitTask)(nil)
@@ -442,7 +420,7 @@ func (t *LimitTask) Run(ctx context.Context) (schema.Cursor, error) {
 
 	offset := 0
 	if t.Exprs.Offset != nil {
-		if val, err := t.VM.Eval(schema.Record{}, t.Exprs.Offset); err != nil {
+		if val, err := t.VM.Eval(t.Exprs.Offset, schema.Record{}, t.Args...); err != nil {
 			return nil, err
 		} else if v := reflect.ValueOf(val); v.CanInt() {
 			offset = int(v.Int())
@@ -451,7 +429,7 @@ func (t *LimitTask) Run(ctx context.Context) (schema.Cursor, error) {
 
 	rowcount := len(records)
 	if t.Exprs.Rowcount != nil {
-		if val, err := t.VM.Eval(schema.Record{}, t.Exprs.Rowcount); err != nil {
+		if val, err := t.VM.Eval(t.Exprs.Rowcount, schema.Record{}, t.Args...); err != nil {
 			return nil, err
 		} else if v := reflect.ValueOf(val); v.CanInt() {
 			rowcount = int(v.Int())

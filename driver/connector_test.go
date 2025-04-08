@@ -21,7 +21,7 @@ func TestConnector_Connect(t *testing.T) {
 		name: catalog,
 	})
 
-	drv := New(registry)
+	drv := New(WithRegistry(registry))
 
 	connector, err := drv.OpenConnector(name)
 	require.NoError(t, err)
@@ -40,7 +40,7 @@ func TestConnector_Driver(t *testing.T) {
 		name: catalog,
 	})
 
-	drv := New(registry)
+	drv := New(WithRegistry(registry))
 
 	connector, err := drv.OpenConnector(name)
 	require.NoError(t, err)

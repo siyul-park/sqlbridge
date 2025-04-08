@@ -21,7 +21,7 @@ func TestStatement_NumInput(t *testing.T) {
 		name: catalog,
 	})
 
-	drv := New(registry)
+	drv := New(WithRegistry(registry))
 
 	conn, err := drv.Open(name)
 	require.NoError(t, err)
@@ -48,7 +48,7 @@ func TestStatement_Exec(t *testing.T) {
 		name: catalog,
 	})
 
-	drv := New(registry)
+	drv := New(WithRegistry(registry))
 
 	conn, err := drv.Open(name)
 	require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestStatement_Query(t *testing.T) {
 		name: catalog,
 	})
 
-	drv := New(registry)
+	drv := New(WithRegistry(registry))
 
 	conn, err := drv.Open(name)
 	require.NoError(t, err)

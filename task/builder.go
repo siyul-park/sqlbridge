@@ -11,19 +11,37 @@ import (
 )
 
 type Builder struct {
+	vm      *vm.VM
 	catalog schema.Catalog
 }
 
-func NewBuilder(catalog schema.Catalog) *Builder {
-	return &Builder{catalog: catalog}
+type Option func(*Builder)
+
+func WithVM(vm *vm.VM) Option {
+	return func(b *Builder) { b.vm = vm }
+}
+
+func WithCatalog(catalog schema.Catalog) Option {
+	return func(b *Builder) { b.catalog = catalog }
+}
+
+func NewBuilder(opts ...Option) *Builder {
+	b := &Builder{
+		vm:      vm.New(),
+		catalog: schema.NewInMemoryCatalog(nil),
+	}
+	for _, opt := range opts {
+		opt(b)
+	}
+	return b
 }
 
 func (b *Builder) Build(p plan.Plan, args ...driver.NamedValue) (Task, error) {
 	switch p := p.(type) {
 	case *plan.NopPlan:
-		return b.buildNopPlan(p, args...)
+		return b.buildNopPlan(p)
 	case *plan.ScanPlan:
-		return b.buildScanPlan(p, args...)
+		return b.buildScanPlan(p)
 	case *plan.AliasPlan:
 		return b.buildAliasPlan(p, args...)
 	case *plan.JoinPlan:
@@ -43,11 +61,11 @@ func (b *Builder) Build(p plan.Plan, args ...driver.NamedValue) (Task, error) {
 	}
 }
 
-func (b *Builder) buildNopPlan(_ *plan.NopPlan, _ ...driver.NamedValue) (Task, error) {
+func (b *Builder) buildNopPlan(_ *plan.NopPlan) (Task, error) {
 	return &NopTask{}, nil
 }
 
-func (b *Builder) buildScanPlan(p *plan.ScanPlan, _ ...driver.NamedValue) (Task, error) {
+func (b *Builder) buildScanPlan(p *plan.ScanPlan) (Task, error) {
 	return &ScanTask{Catalog: b.catalog, Table: p.Table}, nil
 }
 
@@ -68,7 +86,7 @@ func (b *Builder) buildJoinPlan(p *plan.JoinPlan, args ...driver.NamedValue) (Ta
 	if err != nil {
 		return nil, err
 	}
-	return &JoinTask{VM: vm.New(args...), Left: left, Right: right, Join: p.Join, On: p.On, Using: p.Using}, nil
+	return &JoinTask{VM: b.vm, Left: left, Right: right, Join: p.Join, On: p.On, Using: p.Using, Args: args}, nil
 }
 
 func (b *Builder) buildFilterPlan(p *plan.FilterPlan, args ...driver.NamedValue) (Task, error) {
@@ -76,7 +94,7 @@ func (b *Builder) buildFilterPlan(p *plan.FilterPlan, args ...driver.NamedValue)
 	if err != nil {
 		return nil, err
 	}
-	return &FilterTask{VM: vm.New(args...), Input: input, Expr: p.Expr}, nil
+	return &FilterTask{VM: b.vm, Input: input, Expr: p.Expr, Args: args}, nil
 }
 
 func (b *Builder) buildProjectPlan(p *plan.ProjectPlan, args ...driver.NamedValue) (Task, error) {
@@ -84,7 +102,7 @@ func (b *Builder) buildProjectPlan(p *plan.ProjectPlan, args ...driver.NamedValu
 	if err != nil {
 		return nil, err
 	}
-	return &ProjectTask{VM: vm.New(args...), Input: input, Exprs: p.Exprs}, nil
+	return &ProjectTask{VM: b.vm, Input: input, Exprs: p.Exprs, Args: args}, nil
 }
 
 func (b *Builder) buildGroupPlan(p *plan.GroupPlan, args ...driver.NamedValue) (Task, error) {
@@ -92,7 +110,7 @@ func (b *Builder) buildGroupPlan(p *plan.GroupPlan, args ...driver.NamedValue) (
 	if err != nil {
 		return nil, err
 	}
-	return &GroupTask{VM: vm.New(args...), Input: input, Exprs: p.Exprs}, nil
+	return &GroupTask{VM: b.vm, Input: input, Exprs: p.Exprs, Args: args}, nil
 }
 
 func (b *Builder) buildOrderPlan(p *plan.OrderPlan, args ...driver.NamedValue) (Task, error) {
@@ -100,7 +118,7 @@ func (b *Builder) buildOrderPlan(p *plan.OrderPlan, args ...driver.NamedValue) (
 	if err != nil {
 		return nil, err
 	}
-	return &OrderTask{VM: vm.New(args...), Input: input, Exprs: p.Exprs}, nil
+	return &OrderTask{VM: b.vm, Input: input, Exprs: p.Exprs, Args: args}, nil
 }
 
 func (b *Builder) buildLimitPlan(p *plan.LimitPlan, args ...driver.NamedValue) (Task, error) {
@@ -108,5 +126,5 @@ func (b *Builder) buildLimitPlan(p *plan.LimitPlan, args ...driver.NamedValue) (
 	if err != nil {
 		return nil, err
 	}
-	return &LimitTask{VM: vm.New(args...), Input: input, Exprs: p.Exprs}, nil
+	return &LimitTask{VM: b.vm, Input: input, Exprs: p.Exprs, Args: args}, nil
 }

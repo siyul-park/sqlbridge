@@ -11,6 +11,8 @@ import (
 )
 
 func TestVM_Eval(t *testing.T) {
+	vm := New()
+
 	tests := []struct {
 		record schema.Record
 		args   []driver.NamedValue
@@ -85,8 +87,7 @@ func TestVM_Eval(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(sqlparser.String(tt.expr), func(t *testing.T) {
-			vm := New(tt.args...)
-			val, err := vm.Eval(tt.record, tt.expr)
+			val, err := vm.Eval(tt.expr, tt.record, tt.args...)
 			require.NoError(t, err)
 			require.Equal(t, tt.value, val)
 		})

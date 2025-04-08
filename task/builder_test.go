@@ -36,7 +36,7 @@ func TestTask_BuildAndRun(t *testing.T) {
 		"t1": t1,
 		"t2": t2,
 	})
-	builder := NewBuilder(catalog)
+	builder := NewBuilder(WithCatalog(catalog))
 
 	tests := []struct {
 		plan  plan.Plan
