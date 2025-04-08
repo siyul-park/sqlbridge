@@ -39,19 +39,19 @@ func TestTask_BuildAndRun(t *testing.T) {
 	builder := NewBuilder(WithCatalog(catalog))
 
 	tests := []struct {
-		plan  plan.Plan
-		task  Task
-		value driver.Value
+		plan   plan.Plan
+		task   Task
+		cursor schema.Cursor
 	}{
 		{
-			plan:  &plan.NopPlan{},
-			task:  &NopTask{},
-			value: nil,
+			plan:   &plan.NopPlan{},
+			task:   &NopTask{},
+			cursor: schema.NewInMemoryCursor(nil),
 		},
 		{
 			plan: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 			task: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
-			value: schema.NewInMemoryCursor([]schema.Record{
+			cursor: schema.NewInMemoryCursor([]schema.Record{
 				{
 					Columns: []*sqlparser.ColName{
 						{Name: sqlparser.NewColIdent("id")},
@@ -64,7 +64,7 @@ func TestTask_BuildAndRun(t *testing.T) {
 		{
 			plan: &plan.AliasPlan{Input: &plan.ScanPlan{Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 			task: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
-			value: schema.NewInMemoryCursor([]schema.Record{
+			cursor: schema.NewInMemoryCursor([]schema.Record{
 				{
 					Columns: []*sqlparser.ColName{
 						{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
@@ -86,7 +86,7 @@ func TestTask_BuildAndRun(t *testing.T) {
 				Right: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
 				Join:  sqlparser.JoinStr,
 			},
-			value: schema.NewInMemoryCursor([]schema.Record{
+			cursor: schema.NewInMemoryCursor([]schema.Record{
 				{
 					Columns: []*sqlparser.ColName{
 						{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
@@ -110,7 +110,7 @@ func TestTask_BuildAndRun(t *testing.T) {
 				Right: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
 				Join:  sqlparser.LeftJoinStr,
 			},
-			value: schema.NewInMemoryCursor([]schema.Record{
+			cursor: schema.NewInMemoryCursor([]schema.Record{
 				{
 					Columns: []*sqlparser.ColName{
 						{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
@@ -134,7 +134,7 @@ func TestTask_BuildAndRun(t *testing.T) {
 				Right: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}}, Alias: sqlparser.NewTableIdent("t2")},
 				Join:  sqlparser.RightJoinStr,
 			},
-			value: schema.NewInMemoryCursor([]schema.Record{
+			cursor: schema.NewInMemoryCursor([]schema.Record{
 				{
 					Columns: []*sqlparser.ColName{
 						{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
@@ -168,7 +168,7 @@ func TestTask_BuildAndRun(t *testing.T) {
 					Right:    &sqlparser.ColName{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t2")}},
 				},
 			},
-			value: schema.NewInMemoryCursor(nil),
+			cursor: schema.NewInMemoryCursor(nil),
 		},
 		{
 			plan: &plan.JoinPlan{
@@ -184,7 +184,7 @@ func TestTask_BuildAndRun(t *testing.T) {
 				Join:  sqlparser.JoinStr,
 				Using: []sqlparser.ColIdent{sqlparser.NewColIdent("id")},
 			},
-			value: schema.NewInMemoryCursor(nil),
+			cursor: schema.NewInMemoryCursor(nil),
 		},
 		{
 			plan: &plan.FilterPlan{
@@ -204,7 +204,7 @@ func TestTask_BuildAndRun(t *testing.T) {
 					Right:    sqlparser.NewIntVal([]byte("0")),
 				},
 			},
-			value: schema.NewInMemoryCursor(nil),
+			cursor: schema.NewInMemoryCursor(nil),
 		},
 		{
 			plan: &plan.ProjectPlan{
@@ -220,7 +220,7 @@ func TestTask_BuildAndRun(t *testing.T) {
 					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
 				},
 			},
-			value: schema.NewInMemoryCursor([]schema.Record{
+			cursor: schema.NewInMemoryCursor([]schema.Record{
 				{
 					Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("id")}},
 					Values:  []driver.Value{1}},
@@ -236,7 +236,7 @@ func TestTask_BuildAndRun(t *testing.T) {
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
 			},
-			value: schema.NewInMemoryCursor([]schema.Record{
+			cursor: schema.NewInMemoryCursor([]schema.Record{
 				{
 					Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("id")}, {Name: sqlparser.NewColIdent("name")}},
 					Values:  []driver.Value{1, "foo"},
@@ -253,7 +253,7 @@ func TestTask_BuildAndRun(t *testing.T) {
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Exprs: sqlparser.SelectExprs{&sqlparser.StarExpr{TableName: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}},
 			},
-			value: schema.NewInMemoryCursor([]schema.Record{
+			cursor: schema.NewInMemoryCursor([]schema.Record{
 				{
 					Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("id")}, {Name: sqlparser.NewColIdent("name")}},
 					Values:  []driver.Value{1, "foo"},
@@ -270,7 +270,7 @@ func TestTask_BuildAndRun(t *testing.T) {
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Exprs: sqlparser.GroupBy{&sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
 			},
-			value: schema.NewInMemoryCursor([]schema.Record{
+			cursor: schema.NewInMemoryCursor([]schema.Record{
 				{
 					Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("id")}, schema.GroupColumn},
 					Values: []driver.Value{1, []schema.Record{
@@ -299,7 +299,7 @@ func TestTask_BuildAndRun(t *testing.T) {
 					&sqlparser.Order{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}, Direction: sqlparser.DescScr},
 				},
 			},
-			value: schema.NewInMemoryCursor([]schema.Record{
+			cursor: schema.NewInMemoryCursor([]schema.Record{
 				{
 					Columns: []*sqlparser.ColName{
 						{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
@@ -319,7 +319,7 @@ func TestTask_BuildAndRun(t *testing.T) {
 				Input: &AliasTask{Input: &ScanTask{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, Alias: sqlparser.NewTableIdent("t1")},
 				Exprs: &sqlparser.Limit{Offset: sqlparser.NewIntVal([]byte("0")), Rowcount: sqlparser.NewIntVal([]byte("1"))},
 			},
-			value: schema.NewInMemoryCursor([]schema.Record{
+			cursor: schema.NewInMemoryCursor([]schema.Record{
 				{
 					Columns: []*sqlparser.ColName{
 						{Name: sqlparser.NewColIdent("id"), Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
@@ -342,7 +342,13 @@ func TestTask_BuildAndRun(t *testing.T) {
 
 			val, err := task.Run(ctx)
 			require.NoError(t, err)
-			require.Equal(t, tt.value, val)
+
+			expect, err := schema.ReadAll(tt.cursor)
+			require.NoError(t, err)
+
+			actual, err := schema.ReadAll(val)
+			require.NoError(t, err)
+			require.Equal(t, expect, actual)
 		})
 	}
 }

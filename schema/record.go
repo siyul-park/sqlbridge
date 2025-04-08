@@ -41,6 +41,10 @@ func (r Record) Range() func(func(col *sqlparser.ColName, val driver.Value) bool
 	}
 }
 
+func (r Record) IsEmpty() bool {
+	return len(r.Keys) == 0 && len(r.Columns) == 0 && len(r.Values) == 0
+}
+
 func (r Record) Equal(other Record) bool {
 	for col, val1 := range r.Range() {
 		val2, ok := other.Get(col)

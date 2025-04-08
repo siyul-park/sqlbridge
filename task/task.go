@@ -3,6 +3,7 @@ package task
 import (
 	"context"
 	"database/sql/driver"
+	"io"
 	"reflect"
 	"sort"
 
@@ -20,7 +21,7 @@ type NopTask struct{}
 var _ Task = (*NopTask)(nil)
 
 func (t *NopTask) Run(_ context.Context) (schema.Cursor, error) {
-	return nil, nil
+	return schema.NewInMemoryCursor(nil), nil
 }
 
 type ScanTask struct {
@@ -51,26 +52,18 @@ func (t *AliasTask) Run(ctx context.Context) (schema.Cursor, error) {
 		return nil, err
 	}
 
-	records, err := schema.ReadAll(cursor)
-	if err != nil {
-		return nil, err
-	}
-
-	if !t.Alias.IsEmpty() {
-		for i, record := range records {
-			columns := make([]*sqlparser.ColName, 0, len(record.Columns))
-			for _, col := range record.Columns {
-				columns = append(columns, &sqlparser.ColName{
-					Metadata:  col.Metadata,
-					Name:      col.Name,
-					Qualifier: sqlparser.TableName{Name: t.Alias},
-				})
-			}
-			record.Columns = columns
-			records[i] = record
+	return schema.NewMappedCursor(cursor, func(record schema.Record) (schema.Record, error) {
+		columns := make([]*sqlparser.ColName, 0, len(record.Columns))
+		for _, col := range record.Columns {
+			columns = append(columns, &sqlparser.ColName{
+				Metadata:  col.Metadata,
+				Name:      col.Name,
+				Qualifier: sqlparser.TableName{Name: t.Alias},
+			})
 		}
-	}
-	return schema.NewInMemoryCursor(records), nil
+		record.Columns = columns
+		return record, nil
+	}), nil
 }
 
 type JoinTask struct {
@@ -211,23 +204,16 @@ func (t *FilterTask) Run(ctx context.Context) (schema.Cursor, error) {
 		return nil, err
 	}
 
-	records, err := schema.ReadAll(cursor)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := 0; i < len(records); i++ {
-		val, err := t.VM.Eval(t.Expr, records[i], t.Args...)
+	return schema.NewMappedCursor(cursor, func(record schema.Record) (schema.Record, error) {
+		val, err := t.VM.Eval(t.Expr, record, t.Args...)
 		if err != nil {
-			return nil, err
+			return schema.Record{}, err
 		}
-
 		if !t.VM.Bool(val) {
-			records = append(records[:i], records[i+1:]...)
-			i--
+			return schema.Record{}, nil
 		}
-	}
-	return schema.NewInMemoryCursor(records), nil
+		return record, nil
+	}), nil
 }
 
 type ProjectTask struct {
@@ -245,12 +231,7 @@ func (t *ProjectTask) Run(ctx context.Context) (schema.Cursor, error) {
 		return nil, err
 	}
 
-	records, err := schema.ReadAll(cursor)
-	if err != nil {
-		return nil, err
-	}
-
-	for i, record := range records {
+	return schema.NewMappedCursor(cursor, func(record schema.Record) (schema.Record, error) {
 		var columns []*sqlparser.ColName
 		var values []driver.Value
 		for _, expr := range t.Exprs {
@@ -277,20 +258,19 @@ func (t *ProjectTask) Run(ctx context.Context) (schema.Cursor, error) {
 
 				val, err := t.VM.Eval(expr.Expr, record, t.Args...)
 				if err != nil {
-					return nil, err
+					return schema.Record{}, err
 				}
 
 				columns = append(columns, col)
 				values = append(values, val)
 			default:
-				return nil, driver.ErrSkip
+				return schema.Record{}, driver.ErrSkip
 			}
 		}
 		record.Columns = columns
 		record.Values = values
-		records[i] = record
-	}
-	return schema.NewInMemoryCursor(records), nil
+		return record, nil
+	}), nil
 }
 
 type GroupTask struct {
@@ -413,11 +393,6 @@ func (t *LimitTask) Run(ctx context.Context) (schema.Cursor, error) {
 		return nil, err
 	}
 
-	records, err := schema.ReadAll(cursor)
-	if err != nil {
-		return nil, err
-	}
-
 	offset := 0
 	if t.Exprs.Offset != nil {
 		if val, err := t.VM.Eval(t.Exprs.Offset, schema.Record{}, t.Args...); err != nil {
@@ -427,7 +402,7 @@ func (t *LimitTask) Run(ctx context.Context) (schema.Cursor, error) {
 		}
 	}
 
-	rowcount := len(records)
+	rowcount := -1
 	if t.Exprs.Rowcount != nil {
 		if val, err := t.VM.Eval(t.Exprs.Rowcount, schema.Record{}, t.Args...); err != nil {
 			return nil, err
@@ -436,11 +411,15 @@ func (t *LimitTask) Run(ctx context.Context) (schema.Cursor, error) {
 		}
 	}
 
-	if offset >= rowcount {
-		offset = rowcount - 1
-	}
-	if offset+rowcount > len(records) {
-		rowcount = len(records) - offset
-	}
-	return schema.NewInMemoryCursor(records[offset : offset+rowcount]), nil
+	return schema.NewMappedCursor(cursor, func(record schema.Record) (schema.Record, error) {
+		if offset > 0 {
+			offset--
+			return schema.Record{}, nil
+		}
+		if rowcount == 0 {
+			return schema.Record{}, io.EOF
+		}
+		rowcount--
+		return record, nil
+	}), nil
 }

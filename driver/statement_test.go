@@ -27,7 +27,7 @@ func TestStatement_NumInput(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	stmt, err := conn.Prepare(fmt.Sprintf("SELECT * FROM %s WHERE name = ?", table))
+	stmt, err := conn.Prepare(fmt.Sprintf("SELECT * FROM `%s` WHERE name = ?", table))
 	require.NoError(t, err)
 	require.NotNil(t, stmt)
 
@@ -54,7 +54,7 @@ func TestStatement_Exec(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	stmt, err := conn.Prepare(fmt.Sprintf("SELECT * FROM %s WHERE name = ?", table))
+	stmt, err := conn.Prepare(fmt.Sprintf("SELECT * FROM `%s` WHERE name = ?", table))
 	require.NoError(t, err)
 	require.NotNil(t, stmt)
 
@@ -80,7 +80,7 @@ func TestStatement_Query(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	stmt, err := conn.Prepare(fmt.Sprintf("SELECT * FROM %s WHERE name = ?", table))
+	stmt, err := conn.Prepare(fmt.Sprintf("SELECT * FROM `%s` WHERE name = ?", table))
 	require.NoError(t, err)
 	require.NotNil(t, stmt)
 
