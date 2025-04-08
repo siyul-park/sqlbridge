@@ -146,9 +146,9 @@ func (vm *VM) evalComparisonExpr(expr *sqlparser.ComparisonExpr, record schema.R
 	case sqlparser.NotInStr:
 		return !vm.In(left, right), nil
 	case sqlparser.LikeStr:
-		return vm.Link(left, right), nil
+		return vm.Like(left, right), nil
 	case sqlparser.NotLikeStr:
-		return !vm.Link(left, right), nil
+		return !vm.Like(left, right), nil
 	case sqlparser.RegexpStr:
 		return vm.Regexp(left, right), nil
 	case sqlparser.NotRegexpStr:
@@ -306,9 +306,9 @@ func (vm *VM) In(lhs, rhs driver.Value) bool {
 	}
 }
 
-func (vm *VM) Link(lhs, rhs driver.Value) bool {
-	value := fmt.Sprint(lhs)
-	pattern := fmt.Sprint(rhs)
+func (vm *VM) Like(lhs, rhs driver.Value) bool {
+	value := vm.String(lhs)
+	pattern := vm.String(rhs)
 
 	var re strings.Builder
 	re.WriteString(`(?i)^`)
@@ -336,25 +336,16 @@ func (vm *VM) Link(lhs, rhs driver.Value) bool {
 }
 
 func (vm *VM) Regexp(lhs, rhs driver.Value) bool {
-	value := fmt.Sprint(lhs)
-	pattern := fmt.Sprint(rhs)
+	value := vm.String(lhs)
+	pattern := vm.String(rhs)
 
 	matched, _ := regexp.MatchString(pattern, value)
 	return matched
 }
 
 func (vm *VM) Extract(lhs, rhs driver.Value) driver.Value {
-	var value string
-	if v := reflect.ValueOf(lhs); v.Kind() == reflect.String {
-		value = v.String()
-	} else {
-		val, err := json.Marshal(lhs)
-		if err != nil {
-			return nil
-		}
-		value = string(val)
-	}
-	path := fmt.Sprint(rhs)
+	value := vm.String(lhs)
+	path := vm.String(rhs)
 
 	result := gjson.Get(value, path)
 	if !result.Exists() {
@@ -377,7 +368,7 @@ func (vm *VM) Compare(lhs, rhs driver.Value) int {
 	}
 
 	if v1.Kind() == reflect.String || v2.Kind() == reflect.String {
-		return strings.Compare(fmt.Sprint(lhs), fmt.Sprint(rhs))
+		return strings.Compare(vm.String(lhs), vm.String(rhs))
 	}
 
 	f1 := vm.Float64(lhs)
@@ -394,6 +385,21 @@ func (vm *VM) Compare(lhs, rhs driver.Value) int {
 
 func (vm *VM) Equal(lhs, rhs driver.Value) bool {
 	return reflect.DeepEqual(lhs, rhs)
+}
+
+func (vm *VM) String(val driver.Value) string {
+	if v := reflect.ValueOf(val); v.Kind() == reflect.String {
+		return v.String()
+	}
+	v, err := json.Marshal(val)
+	if err != nil {
+		return fmt.Sprint(val)
+	}
+	return string(v)
+}
+
+func (vm *VM) Int(val driver.Value) int {
+	return int(vm.Float64(val))
 }
 
 func (vm *VM) Float64(val driver.Value) float64 {

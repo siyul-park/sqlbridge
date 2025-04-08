@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql/driver"
 	"io"
-	"reflect"
 	"sort"
 
 	"github.com/siyul-park/sqlbridge/schema"
@@ -397,8 +396,8 @@ func (t *LimitTask) Run(ctx context.Context) (schema.Cursor, error) {
 	if t.Exprs.Offset != nil {
 		if val, err := t.VM.Eval(t.Exprs.Offset, schema.Record{}, t.Args...); err != nil {
 			return nil, err
-		} else if v := reflect.ValueOf(val); v.CanInt() {
-			offset = int(v.Int())
+		} else {
+			offset = t.VM.Int(val)
 		}
 	}
 
@@ -406,8 +405,8 @@ func (t *LimitTask) Run(ctx context.Context) (schema.Cursor, error) {
 	if t.Exprs.Rowcount != nil {
 		if val, err := t.VM.Eval(t.Exprs.Rowcount, schema.Record{}, t.Args...); err != nil {
 			return nil, err
-		} else if v := reflect.ValueOf(val); v.CanInt() {
-			rowcount = int(v.Int())
+		} else {
+			rowcount = t.VM.Int(val)
 		}
 	}
 
