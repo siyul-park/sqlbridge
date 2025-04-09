@@ -3,6 +3,7 @@ package vm
 import (
 	"bytes"
 	"database/sql/driver"
+	"encoding"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -101,13 +102,6 @@ func New(opts ...Option) *VM {
 		return vm.RTrim(args[0]), nil
 	}
 
-	vm.functions["length"] = func(args ...driver.Value) (driver.Value, error) {
-		if len(args) < 1 {
-			return nil, driver.ErrSkip
-		}
-		return vm.Length(args[0]), nil
-	}
-
 	vm.functions["concat"] = func(args ...driver.Value) (driver.Value, error) {
 		return vm.Concat(args), nil
 	}
@@ -202,7 +196,7 @@ func New(opts ...Option) *VM {
 	}
 
 	vm.functions["count"] = func(args ...driver.Value) (driver.Value, error) {
-		return int64(vm.Count(args)), nil
+		return vm.Count(args), nil
 	}
 
 	vm.functions["sum"] = func(args ...driver.Value) (driver.Value, error) {
@@ -310,7 +304,7 @@ func New(opts ...Option) *VM {
 	}
 
 	vm.converters["binary"] = func(value driver.Value, _ *sqlparser.ConvertType) (driver.Value, error) {
-		return vm.Byte(value), nil
+		return vm.Bytes(value), nil
 	}
 	for _, name := range []string{"varbinary", "blob", "tinyblob", "mediumblob", "longblob"} {
 		vm.converters[name] = vm.converters["binary"]
@@ -358,6 +352,8 @@ func (vm *VM) Eval(expr sqlparser.Expr, record schema.Record, args ...driver.Nam
 		return vm.evalColName(expr, record)
 	case sqlparser.ValTuple:
 		return vm.evalValTuple(expr, record, args...)
+	case *sqlparser.Subquery:
+		return vm.evalSubquery(expr, args...)
 	case sqlparser.ListArg:
 		return vm.evalListArgExpr(expr, args...)
 	case *sqlparser.BinaryExpr:
@@ -398,7 +394,6 @@ func (vm *VM) evalAndExpr(expr *sqlparser.AndExpr, record schema.Record, args ..
 	if !vm.Bool(left) {
 		return false, nil
 	}
-
 	right, err := vm.Eval(expr.Right, record, args...)
 	if err != nil {
 		return nil, err
@@ -417,7 +412,6 @@ func (vm *VM) evalOrExpr(expr *sqlparser.OrExpr, record schema.Record, args ...d
 	if vm.Bool(left) {
 		return true, nil
 	}
-
 	right, err := vm.Eval(expr.Right, record, args...)
 	if err != nil {
 		return nil, err
@@ -445,7 +439,6 @@ func (vm *VM) evalComparisonExpr(expr *sqlparser.ComparisonExpr, record schema.R
 	if err != nil {
 		return nil, err
 	}
-
 	right, err := vm.Eval(expr.Right, record, args...)
 	if err != nil {
 		return nil, err
@@ -620,17 +613,24 @@ func (vm *VM) evalValTuple(expr sqlparser.ValTuple, record schema.Record, args .
 	return values, nil
 }
 
+func (vm *VM) evalSubquery(expr *sqlparser.Subquery, args ...driver.NamedValue) (driver.Value, error) {
+	name := sqlparser.String(expr)
+	for _, arg := range args {
+		if arg.Name == name {
+			return arg.Value, nil
+		}
+	}
+	return nil, driver.ErrSkip
+}
+
 func (vm *VM) evalListArgExpr(expr sqlparser.ListArg, args ...driver.NamedValue) (driver.Value, error) {
 	name := strings.TrimPrefix(string(expr), "::")
-
 	for _, arg := range args {
 		if arg.Name == name {
 			rv := reflect.ValueOf(arg.Value)
-
 			if rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array {
 				return nil, nil
 			}
-
 			result := make([]driver.Value, rv.Len())
 			for i := 0; i < rv.Len(); i++ {
 				result[i] = rv.Index(i).Interface()
@@ -651,53 +651,47 @@ func (vm *VM) evalBinaryExpr(expr *sqlparser.BinaryExpr, record schema.Record, a
 		return nil, err
 	}
 
-	lv := reflect.ValueOf(left)
-	rv := reflect.ValueOf(right)
-
-	if expr.Operator == sqlparser.PlusStr {
-		if lv.Kind() == reflect.String || rv.Kind() == reflect.String {
-			return vm.String(left) + vm.String(right), nil
-		}
-	}
-
-	lf64 := vm.Float64(left)
-	rf64 := vm.Float64(right)
-
-	li := int64(lf64)
-	ri := int64(rf64)
+	lv, rv := reflect.ValueOf(left), reflect.ValueOf(right)
+	lt, rt := lv.Type(), rv.Type()
 
 	switch expr.Operator {
 	case sqlparser.PlusStr:
-		return lf64 + rf64, nil
+		if lt.Kind() == reflect.String || rt.Kind() == reflect.String {
+			return vm.Cast(vm.String(left)+vm.String(right), lt, rt), nil
+		}
+		return vm.Cast(vm.Float64(left)+vm.Float64(right), lt, rt), nil
 	case sqlparser.MinusStr:
-		return lf64 - rf64, nil
+		return vm.Cast(vm.Float64(left)-vm.Float64(right), lt, rt), nil
 	case sqlparser.MultStr:
-		return lf64 * rf64, nil
+		return vm.Cast(vm.Float64(left)*vm.Float64(right), lt, rt), nil
 	case sqlparser.DivStr:
-		if rf64 == 0 {
+		r := vm.Float64(right)
+		if r == 0 {
 			return math.NaN(), nil
 		}
-		return lf64 / rf64, nil
+		return vm.Cast(vm.Float64(left)/r, lt, rt), nil
 	case sqlparser.IntDivStr:
+		ri := vm.Int64(right)
 		if ri == 0 {
 			return math.NaN(), nil
 		}
-		return float64(li / ri), nil
+		return vm.Cast(vm.Int64(left)/ri, lt, rt), nil
 	case sqlparser.ModStr:
+		ri := vm.Int64(right)
 		if ri == 0 {
 			return math.NaN(), nil
 		}
-		return float64(li % ri), nil
+		return vm.Cast(vm.Int64(left)%ri, lt, rt), nil
 	case sqlparser.BitAndStr:
-		return float64(li & ri), nil
+		return vm.Cast(vm.Int64(left)&vm.Int64(right), lt, rt), nil
 	case sqlparser.BitOrStr:
-		return float64(li | ri), nil
+		return vm.Cast(vm.Int64(left)|vm.Int64(right), lt, rt), nil
 	case sqlparser.BitXorStr:
-		return float64(li ^ ri), nil
+		return vm.Cast(vm.Int64(left)^vm.Int64(right), lt, rt), nil
 	case sqlparser.ShiftLeftStr:
-		return float64(li << ri), nil
+		return vm.Cast(vm.Int64(left)<<vm.Int64(right), lt, rt), nil
 	case sqlparser.ShiftRightStr:
-		return float64(li >> ri), nil
+		return vm.Cast(vm.Int64(left)>>vm.Int64(right), lt, rt), nil
 	default:
 		return nil, driver.ErrSkip
 	}
@@ -709,15 +703,18 @@ func (vm *VM) evalUnaryExpr(expr *sqlparser.UnaryExpr, record schema.Record, arg
 		return nil, err
 	}
 
+	v := reflect.ValueOf(value)
+	t := v.Type()
+
 	switch expr.Operator {
 	case sqlparser.UMinusStr:
-		return -vm.Float64(value), nil
+		return vm.Cast(-vm.Float64(value), t), nil
 	case sqlparser.UPlusStr:
-		return vm.Float64(value), nil
+		return vm.Cast(+vm.Float64(value), t), nil
 	case sqlparser.TildaStr:
-		return ^vm.Int64(value), nil
+		return vm.Cast(^vm.Int64(value), t), nil
 	case sqlparser.BangStr:
-		return !vm.Bool(value), nil
+		return vm.Cast(!vm.Bool(value), t), nil
 	case sqlparser.BinaryStr, sqlparser.UBinaryStr:
 		return []byte(vm.String(value)), nil
 	default:
@@ -872,7 +869,7 @@ func (vm *VM) evalConvertExpr(expr *sqlparser.ConvertExpr, record schema.Record,
 	if err != nil {
 		return nil, err
 	}
-	return vm.Convert(expr.Type, val)
+	return vm.Convert(val, expr.Type)
 }
 
 func (vm *VM) evalSubstrExpr(expr *sqlparser.SubstrExpr, record schema.Record, args ...driver.NamedValue) (driver.Value, error) {
@@ -903,7 +900,7 @@ func (vm *VM) evalConvertUsingExpr(expr *sqlparser.ConvertUsingExpr, record sche
 		return nil, err
 	}
 	typ := &sqlparser.ConvertType{Type: "using", Charset: expr.Type}
-	return vm.Convert(typ, val)
+	return vm.Convert(val, typ)
 }
 
 func (vm *VM) evalMatchExpr(expr *sqlparser.MatchExpr, record schema.Record, args ...driver.NamedValue) (driver.Value, error) {
@@ -1030,7 +1027,7 @@ func (vm *VM) Call(name string, args ...driver.Value) (driver.Value, error) {
 	return fn(args...)
 }
 
-func (vm *VM) Convert(typ *sqlparser.ConvertType, value driver.Value) (driver.Value, error) {
+func (vm *VM) Convert(value driver.Value, typ *sqlparser.ConvertType) (driver.Value, error) {
 	conv, ok := vm.converters[typ.Type]
 	if !ok {
 		return nil, driver.ErrSkip
@@ -1156,20 +1153,9 @@ func (vm *VM) Concat(args []driver.Value) string {
 }
 
 func (vm *VM) Length(val driver.Value) int {
-	if vm.IsNull(val) {
-		return 0
-	}
-
 	rv := reflect.ValueOf(val)
 	if !rv.IsValid() {
 		return 0
-	}
-
-	for rv.Kind() == reflect.Ptr {
-		if rv.IsNil() {
-			return 0
-		}
-		rv = rv.Elem()
 	}
 
 	switch rv.Kind() {
@@ -1188,23 +1174,19 @@ func (vm *VM) Length(val driver.Value) int {
 }
 
 func (vm *VM) Abs(val driver.Value) float64 {
-	f := vm.Float64(val)
-	return math.Abs(f)
+	return math.Abs(vm.Float64(val))
 }
 
 func (vm *VM) Round(val driver.Value) float64 {
-	f := vm.Float64(val)
-	return math.Round(f)
+	return math.Round(vm.Float64(val))
 }
 
 func (vm *VM) Floor(val driver.Value) float64 {
-	f := vm.Float64(val)
-	return math.Floor(f)
+	return math.Floor(vm.Float64(val))
 }
 
 func (vm *VM) Ceil(val driver.Value) float64 {
-	f := vm.Float64(val)
-	return math.Ceil(f)
+	return math.Ceil(vm.Float64(val))
 }
 
 func (vm *VM) Sqrt(val driver.Value) float64 {
@@ -1217,20 +1199,6 @@ func (vm *VM) Pow(base, exp driver.Value) float64 {
 
 func (vm *VM) Mod(a, b driver.Value) float64 {
 	return math.Mod(vm.Float64(a), vm.Float64(b))
-}
-
-func (vm *VM) IsNull(val driver.Value) bool {
-	if val == nil {
-		return true
-	}
-	rv := reflect.ValueOf(val)
-	if !rv.IsValid() {
-		return true
-	}
-	if rv.Kind() == reflect.Ptr && rv.IsNil() {
-		return true
-	}
-	return false
 }
 
 func (vm *VM) Coalesce(args []driver.Value) driver.Value {
@@ -1270,26 +1238,26 @@ func (vm *VM) Min(values []driver.Value) driver.Value {
 	if len(values) == 0 {
 		return nil
 	}
-	min := values[0]
+	val := values[0]
 	for _, v := range values[1:] {
-		if vm.Compare(v, min) < 0 {
-			min = v
+		if vm.Compare(v, val) < 0 {
+			val = v
 		}
 	}
-	return min
+	return val
 }
 
 func (vm *VM) Max(values []driver.Value) driver.Value {
 	if len(values) == 0 {
 		return nil
 	}
-	min := values[0]
+	val := values[0]
 	for _, v := range values[1:] {
-		if vm.Compare(v, min) > 0 {
-			min = v
+		if vm.Compare(v, val) > 0 {
+			val = v
 		}
 	}
-	return min
+	return val
 }
 
 func (vm *VM) Variance(values []driver.Value) float64 {
@@ -1400,6 +1368,41 @@ func (vm *VM) Equal(lhs, rhs driver.Value) bool {
 	return reflect.DeepEqual(lhs, rhs)
 }
 
+func (vm *VM) Cast(val driver.Value, typs ...reflect.Type) driver.Value {
+	rv := reflect.ValueOf(val)
+	for _, typ := range typs {
+		if rv.Type().ConvertibleTo(typ) {
+			return rv.Convert(typ).Interface()
+		}
+	}
+	return val
+}
+
+func (vm *VM) Time(val driver.Value) int {
+	rv := reflect.ValueOf(val)
+	if !rv.IsValid() {
+		return 0
+	}
+
+	switch {
+	case rv.Kind() >= reflect.Int && rv.Kind() <= reflect.Int64:
+		return time.Unix(rv.Int(), 0).UTC().Nanosecond()
+	case rv.Kind() >= reflect.Uint && rv.Kind() <= reflect.Uint64:
+		return time.Unix(int64(rv.Uint()), 0).UTC().Nanosecond()
+	case rv.Kind() == reflect.Float32 || rv.Kind() == reflect.Float64:
+		return time.Unix(int64(rv.Float()), 0).UTC().Nanosecond()
+	}
+
+	layouts := []string{time.RFC3339, "2006-01-02 15:04:05", "2006-01-02", "02 Jan 2006 15:04"}
+	str := vm.String(val)
+	for _, layout := range layouts {
+		if t, err := time.Parse(layout, str); err == nil {
+			return t.UTC().Nanosecond()
+		}
+	}
+	return int(vm.Int64(val))
+}
+
 func (vm *VM) Bool(val driver.Value) bool {
 	v := reflect.ValueOf(val)
 	return v.IsValid() && !v.IsZero()
@@ -1410,43 +1413,74 @@ func (vm *VM) Int64(val driver.Value) int64 {
 }
 
 func (vm *VM) Float64(val driver.Value) float64 {
-	if v := reflect.ValueOf(val); v.CanInt() {
-		return float64(v.Int())
-	} else if v.CanUint() {
-		return float64(v.Uint())
-	} else if v.CanFloat() {
-		return v.Float()
-	} else if v.Kind() == reflect.String {
-		f64, _ := strconv.ParseFloat(vm.String(val), 64)
-		return f64
-	} else if vm.Bool(val) {
-		return 1
-	} else {
+	v := reflect.ValueOf(val)
+	if !v.IsValid() {
 		return 0
 	}
+
+	switch v.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return float64(v.Int())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return float64(v.Uint())
+	case reflect.Float32, reflect.Float64:
+		return v.Float()
+	default:
+	}
+
+	if f64, err := strconv.ParseFloat(vm.String(val), 64); err == nil {
+		return f64
+	}
+	if vm.Bool(val) {
+		return 1
+	}
+	return 0
+}
+
+func (vm *VM) Bytes(val driver.Value) []byte {
+	if s, ok := val.(encoding.BinaryMarshaler); ok {
+		if text, err := s.MarshalBinary(); err == nil {
+			return text
+		}
+	}
+	return []byte(vm.String(val))
 }
 
 func (vm *VM) String(val driver.Value) string {
-	if val == nil {
-		return ""
+	if s, ok := val.(encoding.TextMarshaler); ok {
+		if text, err := s.MarshalText(); err == nil {
+			return string(text)
+		}
 	}
 	if s, ok := val.(fmt.Stringer); ok {
 		return s.String()
 	}
 
-	v := reflect.ValueOf(val)
-	switch v.Kind() {
+	rv := reflect.ValueOf(val)
+	if !rv.IsValid() {
+		return ""
+	}
+
+	switch rv.Kind() {
+	case reflect.Ptr, reflect.Interface, reflect.Chan, reflect.Func:
+		if rv.IsNil() {
+			return ""
+		}
+	default:
+	}
+
+	switch rv.Kind() {
 	case reflect.String:
-		return v.String()
+		return rv.String()
 	case reflect.Slice:
-		if v.Type().Elem().Kind() == reflect.Uint8 {
-			return string(v.Bytes())
+		if rv.Type().Elem().Kind() == reflect.Uint8 {
+			return string(rv.Bytes())
 		}
 	case reflect.Array:
-		if v.Type().Elem().Kind() == reflect.Uint8 {
-			b := make([]byte, v.Len())
-			for i := 0; i < v.Len(); i++ {
-				b[i] = byte(v.Index(i).Uint())
+		if rv.Type().Elem().Kind() == reflect.Uint8 {
+			b := make([]byte, rv.Len())
+			for i := 0; i < rv.Len(); i++ {
+				b[i] = byte(rv.Index(i).Uint())
 			}
 			return string(b)
 		}
@@ -1460,37 +1494,18 @@ func (vm *VM) String(val driver.Value) string {
 	return string(b)
 }
 
-func (vm *VM) Byte(val driver.Value) []byte {
-	return []byte(vm.String(val))
-}
-
-func (vm *VM) Time(val driver.Value) time.Time {
-	if vm.IsNull(val) {
-		return time.Time{}
-	}
-
+func (vm *VM) IsNull(val driver.Value) bool {
 	rv := reflect.ValueOf(val)
-	switch {
-	case rv.Kind() >= reflect.Int && rv.Kind() <= reflect.Int64:
-		return time.Unix(rv.Int(), 0)
-	case rv.Kind() >= reflect.Uint && rv.Kind() <= reflect.Uint64:
-		return time.Unix(int64(rv.Uint()), 0)
-	case rv.Kind() == reflect.Float32 || rv.Kind() == reflect.Float64:
-		return time.Unix(int64(rv.Float()), 0)
+	if !rv.IsValid() {
+		return true
 	}
 
-	layouts := []string{
-		time.RFC3339,
-		"2006-01-02 15:04:05",
-		"2006-01-02",
-		"02 Jan 2006 15:04",
-	}
-	str := vm.String(val)
-	for _, layout := range layouts {
-		if t, err := time.Parse(layout, str); err == nil {
-			return t
+	switch rv.Kind() {
+	case reflect.Ptr, reflect.Slice, reflect.Map, reflect.Interface, reflect.Chan, reflect.Func:
+		if rv.IsNil() {
+			return true
 		}
+	default:
 	}
-
-	return time.Unix(vm.Int64(val), 0)
+	return false
 }

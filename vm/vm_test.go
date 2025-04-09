@@ -220,7 +220,7 @@ func TestVM_Eval(t *testing.T) {
 				Right:    sqlparser.NewIntVal([]byte("2")),
 				Operator: sqlparser.PlusStr,
 			},
-			value: float64(3),
+			value: int64(3),
 		},
 		{
 			expr: &sqlparser.BinaryExpr{
@@ -236,7 +236,7 @@ func TestVM_Eval(t *testing.T) {
 				Right:    sqlparser.NewIntVal([]byte("3")),
 				Operator: sqlparser.MinusStr,
 			},
-			value: float64(2),
+			value: int64(2),
 		},
 		{
 			expr: &sqlparser.BinaryExpr{
@@ -244,7 +244,7 @@ func TestVM_Eval(t *testing.T) {
 				Right:    sqlparser.NewIntVal([]byte("3")),
 				Operator: sqlparser.MultStr,
 			},
-			value: float64(15),
+			value: int64(15),
 		},
 		{
 			expr: &sqlparser.BinaryExpr{
@@ -252,7 +252,7 @@ func TestVM_Eval(t *testing.T) {
 				Right:    sqlparser.NewIntVal([]byte("2")),
 				Operator: sqlparser.DivStr,
 			},
-			value: float64(5),
+			value: int64(5),
 		},
 		{
 			expr: &sqlparser.BinaryExpr{
@@ -260,7 +260,7 @@ func TestVM_Eval(t *testing.T) {
 				Right:    sqlparser.NewIntVal([]byte("3")),
 				Operator: sqlparser.IntDivStr,
 			},
-			value: float64(3),
+			value: int64(3),
 		},
 		{
 			expr: &sqlparser.BinaryExpr{
@@ -268,7 +268,7 @@ func TestVM_Eval(t *testing.T) {
 				Right:    sqlparser.NewIntVal([]byte("3")),
 				Operator: sqlparser.ModStr,
 			},
-			value: float64(1),
+			value: int64(1),
 		},
 		{
 			expr: &sqlparser.BinaryExpr{
@@ -276,7 +276,7 @@ func TestVM_Eval(t *testing.T) {
 				Right:    sqlparser.NewIntVal([]byte("3")),
 				Operator: sqlparser.BitAndStr,
 			},
-			value: float64(2),
+			value: int64(2),
 		},
 		{
 			expr: &sqlparser.BinaryExpr{
@@ -284,7 +284,7 @@ func TestVM_Eval(t *testing.T) {
 				Right:    sqlparser.NewIntVal([]byte("3")),
 				Operator: sqlparser.BitOrStr,
 			},
-			value: float64(7),
+			value: int64(7),
 		},
 		{
 			expr: &sqlparser.BinaryExpr{
@@ -292,7 +292,7 @@ func TestVM_Eval(t *testing.T) {
 				Right:    sqlparser.NewIntVal([]byte("3")),
 				Operator: sqlparser.BitXorStr,
 			},
-			value: float64(5),
+			value: int64(5),
 		},
 		{
 			expr: &sqlparser.BinaryExpr{
@@ -300,7 +300,7 @@ func TestVM_Eval(t *testing.T) {
 				Right:    sqlparser.NewIntVal([]byte("3")),
 				Operator: sqlparser.ShiftLeftStr,
 			},
-			value: float64(16),
+			value: int64(16),
 		},
 		{
 			expr: &sqlparser.BinaryExpr{
@@ -308,21 +308,21 @@ func TestVM_Eval(t *testing.T) {
 				Right:    sqlparser.NewIntVal([]byte("3")),
 				Operator: sqlparser.ShiftRightStr,
 			},
-			value: float64(2),
+			value: int64(2),
 		},
 		{
 			expr: &sqlparser.UnaryExpr{
 				Operator: sqlparser.UMinusStr,
 				Expr:     sqlparser.NewIntVal([]byte("10")),
 			},
-			value: float64(-10),
+			value: int64(-10),
 		},
 		{
 			expr: &sqlparser.UnaryExpr{
 				Operator: sqlparser.UPlusStr,
 				Expr:     sqlparser.NewIntVal([]byte("10")),
 			},
-			value: float64(10),
+			value: int64(10),
 		},
 		{
 			expr: &sqlparser.UnaryExpr{
@@ -572,7 +572,7 @@ func TestVM_Eval(t *testing.T) {
 					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("3"))},
 				},
 			},
-			value: int64(3),
+			value: 3,
 		},
 		{
 			expr: &sqlparser.FuncExpr{
@@ -774,7 +774,7 @@ func TestVM_Eval(t *testing.T) {
 			},
 			value: func() driver.Value {
 				t, _ := time.Parse("2006-01-02", "2024-01-01")
-				return t
+				return t.UTC().Nanosecond()
 			}(),
 		},
 		{
