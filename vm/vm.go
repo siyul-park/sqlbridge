@@ -198,7 +198,87 @@ func New(opts ...Option) *VM {
 	}
 
 	vm.functions["coalesce"] = func(args ...driver.Value) (driver.Value, error) {
-		return vm.Coalesce(args...), nil
+		return vm.Coalesce(args), nil
+	}
+
+	vm.functions["count"] = func(args ...driver.Value) (driver.Value, error) {
+		return int64(vm.Count(args)), nil
+	}
+
+	vm.functions["sum"] = func(args ...driver.Value) (driver.Value, error) {
+		return vm.Sum(args), nil
+	}
+
+	vm.functions["avg"] = func(args ...driver.Value) (driver.Value, error) {
+		return vm.Avg(args), nil
+	}
+
+	vm.functions["min"] = func(args ...driver.Value) (driver.Value, error) {
+		return vm.Min(args), nil
+	}
+
+	vm.functions["max"] = func(args ...driver.Value) (driver.Value, error) {
+		return vm.Max(args), nil
+	}
+
+	vm.functions["stddev"] = func(args ...driver.Value) (driver.Value, error) {
+		return vm.StdDev(args), nil
+	}
+
+	vm.functions["stddev_pop"] = func(args ...driver.Value) (driver.Value, error) {
+		return vm.StdDevPop(args), nil
+	}
+
+	vm.functions["stddev_samp"] = func(args ...driver.Value) (driver.Value, error) {
+		return vm.StdDevSamp(args), nil
+	}
+
+	vm.functions["variance"] = func(args ...driver.Value) (driver.Value, error) {
+		return vm.Variance(args), nil
+	}
+
+	vm.functions["var_pop"] = func(args ...driver.Value) (driver.Value, error) {
+		return vm.VarPop(args), nil
+	}
+
+	vm.functions["var_samp"] = func(args ...driver.Value) (driver.Value, error) {
+		return vm.VarSamp(args), nil
+	}
+
+	vm.functions["bit_and"] = func(args ...driver.Value) (driver.Value, error) {
+		return vm.BitAnd(args), nil
+	}
+
+	vm.functions["bit_or"] = func(args ...driver.Value) (driver.Value, error) {
+		return vm.BitOr(args), nil
+	}
+
+	vm.functions["bit_xor"] = func(args ...driver.Value) (driver.Value, error) {
+		return vm.BitXor(args), nil
+	}
+
+	vm.functions["group_concat"] = func(args ...driver.Value) (driver.Value, error) {
+		group := make([]schema.Record, len(args))
+		for i, v := range args {
+			group[i] = schema.Record{
+				Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("x")}},
+				Values:  []driver.Value{v},
+			}
+		}
+
+		record := schema.Record{
+			Columns: []*sqlparser.ColName{schema.GroupColumn},
+			Values:  []driver.Value{group},
+		}
+
+		expr := &sqlparser.GroupConcatExpr{
+			Exprs: sqlparser.SelectExprs{
+				&sqlparser.AliasedExpr{
+					Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("x")},
+				},
+			},
+		}
+		return vm.evalGroupConcatExpr(expr, record)
 	}
 
 	vm.converters["bool"] = func(value driver.Value, _ *sqlparser.ConvertType) (driver.Value, error) {
@@ -684,36 +764,46 @@ func (vm *VM) evalCollateExpr(expr *sqlparser.CollateExpr, record schema.Record,
 
 func (vm *VM) evalFuncExpr(expr *sqlparser.FuncExpr, record schema.Record, args ...driver.NamedValue) (driver.Value, error) {
 	var values []driver.Value
-	evalSelectExprs := func(record schema.Record) error {
+
+	group, _ := record.Get(schema.GroupColumn)
+	records, ok := group.([]schema.Record)
+	if expr.IsAggregate() && ok {
+		for _, record := range records {
+			var vals []driver.Value
+			for _, se := range expr.Exprs {
+				switch e := se.(type) {
+				case *sqlparser.AliasedExpr:
+					val, err := vm.Eval(e.Expr, record, args...)
+					if err != nil {
+						return nil, err
+					}
+					vals = append(vals, val)
+				case *sqlparser.StarExpr:
+					vals = append(vals, record.Values...)
+				default:
+					return nil, driver.ErrSkip
+				}
+			}
+			if len(vals) <= 1 {
+				values = append(values, vals...)
+			} else {
+				values = append(values, vals)
+			}
+		}
+	} else {
 		for _, se := range expr.Exprs {
 			switch e := se.(type) {
 			case *sqlparser.AliasedExpr:
 				val, err := vm.Eval(e.Expr, record, args...)
 				if err != nil {
-					return err
+					return nil, err
 				}
 				values = append(values, val)
 			case *sqlparser.StarExpr:
 				values = append(values, record.Values...)
 			default:
-				return driver.ErrSkip
+				return nil, driver.ErrSkip
 			}
-		}
-		return nil
-	}
-
-	if expr.IsAggregate() {
-		group, _ := record.Get(schema.GroupColumn)
-		if records, ok := group.([]schema.Record); ok {
-			for _, record := range records {
-				if err := evalSelectExprs(record); err != nil {
-					return nil, err
-				}
-			}
-		}
-	} else {
-		if err := evalSelectExprs(record); err != nil {
-			return nil, err
 		}
 	}
 
@@ -1143,13 +1233,138 @@ func (vm *VM) IsNull(val driver.Value) bool {
 	return false
 }
 
-func (vm *VM) Coalesce(args ...driver.Value) driver.Value {
+func (vm *VM) Coalesce(args []driver.Value) driver.Value {
 	for _, val := range args {
 		if !vm.IsNull(val) {
 			return val
 		}
 	}
 	return nil
+}
+
+func (vm *VM) Count(values []driver.Value) int {
+	return len(values)
+}
+
+func (vm *VM) Sum(values []driver.Value) float64 {
+	var sum float64
+	for _, v := range values {
+		switch n := vm.Float64(v); n {
+		case math.NaN():
+			continue
+		default:
+			sum += n
+		}
+	}
+	return sum
+}
+
+func (vm *VM) Avg(values []driver.Value) float64 {
+	if len(values) == 0 {
+		return math.NaN()
+	}
+	return vm.Sum(values) / float64(vm.Count(values))
+}
+
+func (vm *VM) Min(values []driver.Value) driver.Value {
+	if len(values) == 0 {
+		return nil
+	}
+	min := values[0]
+	for _, v := range values[1:] {
+		if vm.Compare(v, min) < 0 {
+			min = v
+		}
+	}
+	return min
+}
+
+func (vm *VM) Max(values []driver.Value) driver.Value {
+	if len(values) == 0 {
+		return nil
+	}
+	min := values[0]
+	for _, v := range values[1:] {
+		if vm.Compare(v, min) > 0 {
+			min = v
+		}
+	}
+	return min
+}
+
+func (vm *VM) Variance(values []driver.Value) float64 {
+	avg := vm.Avg(values)
+	n := vm.Count(values)
+	if n == 0 {
+		return math.NaN()
+	}
+	var sum float64
+	for _, v := range values {
+		if f := vm.Float64(v); !math.IsNaN(f) {
+			diff := f - avg
+			sum += diff * diff
+		}
+	}
+	return sum / float64(n)
+}
+
+func (vm *VM) VarPop(values []driver.Value) float64 {
+	return vm.Variance(values)
+}
+
+func (vm *VM) VarSamp(values []driver.Value) float64 {
+	n := vm.Count(values)
+	if n <= 1 {
+		return math.NaN()
+	}
+	avg := vm.Avg(values)
+	var sum float64
+	for _, v := range values {
+		if f := vm.Float64(v); !math.IsNaN(f) {
+			diff := f - avg
+			sum += diff * diff
+		}
+	}
+	return sum / float64(n-1)
+}
+
+func (vm *VM) StdDev(values []driver.Value) float64 {
+	return math.Sqrt(vm.Variance(values))
+}
+
+func (vm *VM) StdDevPop(values []driver.Value) float64 {
+	return math.Sqrt(vm.VarPop(values))
+}
+
+func (vm *VM) StdDevSamp(values []driver.Value) float64 {
+	return math.Sqrt(vm.VarSamp(values))
+}
+
+func (vm *VM) BitAnd(values []driver.Value) int64 {
+	if len(values) == 0 {
+		return 0
+	}
+	var val int64 = -1
+	for _, v := range values {
+		val &= vm.Int64(v)
+	}
+	return val
+}
+
+func (vm *VM) BitOr(values []driver.Value) int64 {
+	var val int64
+	for _, v := range values {
+		val |= vm.Int64(v)
+	}
+	return val
+}
+
+func (vm *VM) BitXor(values []driver.Value) int64 {
+	var val int64
+	for _, v := range values {
+		val ^= vm.Int64(v)
+	}
+	return val
 }
 
 func (vm *VM) Compare(lhs, rhs driver.Value) int {
@@ -1277,5 +1492,5 @@ func (vm *VM) Time(val driver.Value) time.Time {
 		}
 	}
 
-	return time.Unix(int64(vm.Int64(val)), 0)
+	return time.Unix(vm.Int64(val), 0)
 }

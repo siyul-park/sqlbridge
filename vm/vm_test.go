@@ -564,6 +564,102 @@ func TestVM_Eval(t *testing.T) {
 			value: "foo",
 		},
 		{
+			expr: &sqlparser.FuncExpr{
+				Name: sqlparser.NewColIdent("count"),
+				Exprs: sqlparser.SelectExprs{
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("1"))},
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("2"))},
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("3"))},
+				},
+			},
+			value: int64(3),
+		},
+		{
+			expr: &sqlparser.FuncExpr{
+				Name: sqlparser.NewColIdent("sum"),
+				Exprs: sqlparser.SelectExprs{
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("1"))},
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("2"))},
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("3"))},
+				},
+			},
+			value: float64(6),
+		},
+		{
+			expr: &sqlparser.FuncExpr{
+				Name: sqlparser.NewColIdent("avg"),
+				Exprs: sqlparser.SelectExprs{
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("2"))},
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("4"))},
+				},
+			},
+			value: float64(3),
+		},
+		{
+			expr: &sqlparser.FuncExpr{
+				Name: sqlparser.NewColIdent("min"),
+				Exprs: sqlparser.SelectExprs{
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("5"))},
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("2"))},
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("8"))},
+				},
+			},
+			value: int64(2),
+		},
+		{
+			expr: &sqlparser.FuncExpr{
+				Name: sqlparser.NewColIdent("max"),
+				Exprs: sqlparser.SelectExprs{
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("5"))},
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("2"))},
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("8"))},
+				},
+			},
+			value: int64(8),
+		},
+		{
+			expr: &sqlparser.FuncExpr{
+				Name: sqlparser.NewColIdent("group_concat"),
+				Exprs: sqlparser.SelectExprs{
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewStrVal([]byte("a"))},
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewStrVal([]byte("b"))},
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewStrVal([]byte("c"))},
+				},
+			},
+			value: "a,b,c",
+		},
+		{
+			expr: &sqlparser.FuncExpr{
+				Name: sqlparser.NewColIdent("bit_and"),
+				Exprs: sqlparser.SelectExprs{
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("7"))},
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("3"))},
+				},
+			},
+			value: int64(3),
+		},
+		{
+			expr: &sqlparser.FuncExpr{
+				Name: sqlparser.NewColIdent("bit_or"),
+				Exprs: sqlparser.SelectExprs{
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("4"))},
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("2"))},
+				},
+			},
+			value: int64(6),
+		},
+		{
+			expr: &sqlparser.FuncExpr{
+				Name: sqlparser.NewColIdent("bit_xor"),
+				Exprs: sqlparser.SelectExprs{
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("1"))},
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("2"))},
+					&sqlparser.AliasedExpr{Expr: sqlparser.NewIntVal([]byte("3"))},
+				},
+			},
+			value: int64(0),
+		},
+		{
 			expr: &sqlparser.CaseExpr{
 				Expr: sqlparser.NewIntVal([]byte("2")),
 				Whens: []*sqlparser.When{
