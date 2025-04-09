@@ -9,6 +9,7 @@ import (
 	"math"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -815,12 +816,116 @@ func (vm *VM) evalConvertUsingExpr(expr *sqlparser.ConvertUsingExpr, record sche
 	return vm.Convert(typ, val)
 }
 
-func (vm *VM) evalMatchExpr(_ *sqlparser.MatchExpr, _ schema.Record, _ ...driver.NamedValue) (driver.Value, error) {
-	return nil, driver.ErrSkip
+func (vm *VM) evalMatchExpr(expr *sqlparser.MatchExpr, record schema.Record, args ...driver.NamedValue) (driver.Value, error) {
+	val, err := vm.Eval(expr.Expr, record, args...)
+	if err != nil {
+		return nil, err
+	}
+	query := vm.String(val)
+	terms := strings.Fields(query)
+	if len(terms) == 0 {
+		return float64(0), nil
+	}
+
+	var columns []string
+	for _, se := range expr.Columns {
+		switch e := se.(type) {
+		case *sqlparser.AliasedExpr:
+			val, err := vm.Eval(e.Expr, record, args...)
+			if err != nil {
+				return nil, err
+			}
+			columns = append(columns, vm.String(val))
+		case *sqlparser.StarExpr:
+			for _, v := range record.Values {
+				columns = append(columns, vm.String(v))
+			}
+		default:
+			return nil, driver.ErrSkip
+		}
+	}
+
+	var score float64
+	for _, t := range terms {
+		re := regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(t) + `\b`)
+		for _, text := range columns {
+			score += float64(len(re.FindAllStringIndex(text, -1)))
+		}
+	}
+
+	switch expr.Option {
+	case sqlparser.BooleanModeStr:
+		return score > 0, nil
+	default:
+		return score, nil
+	}
 }
 
-func (vm *VM) evalGroupConcatExpr(_ *sqlparser.GroupConcatExpr, _ schema.Record, _ ...driver.NamedValue) (driver.Value, error) {
-	return nil, driver.ErrSkip
+func (vm *VM) evalGroupConcatExpr(expr *sqlparser.GroupConcatExpr, record schema.Record, _ ...driver.NamedValue) (driver.Value, error) {
+	group, _ := record.Get(schema.GroupColumn)
+	records, ok := group.([]schema.Record)
+	if !ok {
+		return nil, nil
+	}
+
+	if len(expr.OrderBy) > 0 {
+		sort.SliceStable(records, func(i, j int) bool {
+			for _, order := range expr.OrderBy {
+				vi, err1 := vm.Eval(order.Expr, records[i])
+				vj, err2 := vm.Eval(order.Expr, records[j])
+				if err1 != nil || err2 != nil {
+					continue
+				}
+
+				cmp := vm.Compare(vi, vj)
+				if order.Direction == sqlparser.DescScr {
+					cmp *= -1
+				}
+				return cmp < 0
+			}
+			return false
+		})
+	}
+
+	var parts []string
+	for _, record := range records {
+		var tokens []string
+		for _, se := range expr.Exprs {
+			switch e := se.(type) {
+			case *sqlparser.AliasedExpr:
+				v, err := vm.Eval(e.Expr, record)
+				if err != nil {
+					return nil, err
+				}
+				tokens = append(tokens, vm.String(v))
+			case *sqlparser.StarExpr:
+				for _, v := range record.Values {
+					tokens = append(tokens, vm.String(v))
+				}
+			default:
+				return nil, driver.ErrSkip
+			}
+		}
+		parts = append(parts, strings.Join(tokens, ""))
+	}
+
+	if strings.EqualFold(expr.Distinct, "distinct") {
+		seen := make(map[string]struct{}, len(parts))
+		uniq := parts[:0]
+		for _, p := range parts {
+			if _, exists := seen[p]; !exists {
+				seen[p] = struct{}{}
+				uniq = append(uniq, p)
+			}
+		}
+		parts = uniq
+	}
+
+	sep := ","
+	if expr.Separator != "" {
+		sep = expr.Separator
+	}
+	return strings.Join(parts, sep), nil
 }
 
 func (vm *VM) evalDefault(_ *sqlparser.Default) (driver.Value, error) {

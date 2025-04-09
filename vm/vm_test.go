@@ -723,6 +723,85 @@ func TestVM_Eval(t *testing.T) {
 			value: "abc",
 		},
 		{
+			expr: &sqlparser.MatchExpr{
+				Columns: sqlparser.SelectExprs{
+					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("c1")}},
+					&sqlparser.StarExpr{},
+				},
+				Expr:   sqlparser.NewStrVal([]byte("x")),
+				Option: "",
+			},
+			record: schema.Record{
+				Columns: []*sqlparser.ColName{
+					{Name: sqlparser.NewColIdent("c1")},
+					{Name: sqlparser.NewColIdent("c2")},
+				},
+				Values: []driver.Value{"x foo", "bar x baz"},
+			},
+			value: float64(3),
+		},
+		{
+			expr: &sqlparser.GroupConcatExpr{
+				Exprs: sqlparser.SelectExprs{&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("c1")}}},
+			},
+			record: schema.Record{
+				Columns: []*sqlparser.ColName{schema.GroupColumn},
+				Values: []driver.Value{[]schema.Record{
+					{Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("c1")}}, Values: []driver.Value{"a"}},
+					{Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("c1")}}, Values: []driver.Value{"b"}},
+					{Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("c1")}}, Values: []driver.Value{"a"}},
+				}},
+			},
+			value: "a,b,a",
+		},
+		{
+			expr: &sqlparser.GroupConcatExpr{
+				Distinct:  "distinct",
+				Exprs:     sqlparser.SelectExprs{&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("c1")}}},
+				Separator: ";",
+			},
+			record: schema.Record{
+				Columns: []*sqlparser.ColName{schema.GroupColumn},
+				Values: []driver.Value{[]schema.Record{
+					{Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("c1")}}, Values: []driver.Value{"x"}},
+					{Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("c1")}}, Values: []driver.Value{"y"}},
+					{Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("c1")}}, Values: []driver.Value{"x"}},
+				}},
+			},
+			value: "x;y",
+		},
+		{
+			expr: &sqlparser.GroupConcatExpr{
+				Exprs: sqlparser.SelectExprs{
+					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("c1")}},
+					&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("c2")}},
+				},
+				Separator: "|",
+			},
+			record: schema.Record{
+				Columns: []*sqlparser.ColName{schema.GroupColumn},
+				Values: []driver.Value{[]schema.Record{
+					{Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("c1")}, {Name: sqlparser.NewColIdent("c2")}}, Values: []driver.Value{"a", "1"}},
+					{Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("c1")}, {Name: sqlparser.NewColIdent("c2")}}, Values: []driver.Value{"b", "2"}},
+				}},
+			},
+			value: "a1|b2",
+		},
+		{
+			expr: &sqlparser.GroupConcatExpr{
+				Exprs:   sqlparser.SelectExprs{&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("c1")}}},
+				OrderBy: sqlparser.OrderBy{{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("c1")}, Direction: sqlparser.AscScr}},
+			},
+			record: schema.Record{
+				Columns: []*sqlparser.ColName{schema.GroupColumn},
+				Values: []driver.Value{[]schema.Record{
+					{Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("c1")}}, Values: []driver.Value{"b"}},
+					{Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("c1")}}, Values: []driver.Value{"a"}},
+				}},
+			},
+			value: "a,b",
+		},
+		{
 			expr:  &sqlparser.Default{},
 			value: nil,
 		},
