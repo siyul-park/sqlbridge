@@ -36,26 +36,26 @@ func NewBuilder(opts ...Option) *Builder {
 	return b
 }
 
-func (b *Builder) Build(p plan.Plan, args ...driver.NamedValue) (Task, error) {
+func (b *Builder) Build(p plan.Plan) (Task, error) {
 	switch p := p.(type) {
 	case *plan.NopPlan:
 		return b.buildNopPlan(p)
 	case *plan.ScanPlan:
 		return b.buildScanPlan(p)
 	case *plan.AliasPlan:
-		return b.buildAliasPlan(p, args...)
+		return b.buildAliasPlan(p)
 	case *plan.JoinPlan:
-		return b.buildJoinPlan(p, args...)
+		return b.buildJoinPlan(p)
 	case *plan.FilterPlan:
-		return b.buildFilterPlan(p, args...)
+		return b.buildFilterPlan(p)
 	case *plan.ProjectPlan:
-		return b.buildProjectPlan(p, args...)
+		return b.buildProjectPlan(p)
 	case *plan.GroupPlan:
-		return b.buildGroupPlan(p, args...)
+		return b.buildGroupPlan(p)
 	case *plan.OrderPlan:
-		return b.buildOrderPlan(p, args...)
+		return b.buildOrderPlan(p)
 	case *plan.LimitPlan:
-		return b.buildLimitPlan(p, args...)
+		return b.buildLimitPlan(p)
 	default:
 		return nil, driver.ErrSkip
 	}
@@ -69,62 +69,62 @@ func (b *Builder) buildScanPlan(p *plan.ScanPlan) (Task, error) {
 	return &ScanTask{Catalog: b.catalog, Table: p.Table}, nil
 }
 
-func (b *Builder) buildAliasPlan(p *plan.AliasPlan, args ...driver.NamedValue) (Task, error) {
-	input, err := b.Build(p.Input, args...)
+func (b *Builder) buildAliasPlan(p *plan.AliasPlan) (Task, error) {
+	input, err := b.Build(p.Input)
 	if err != nil {
 		return nil, err
 	}
 	return &AliasTask{Input: input, Alias: p.Alias}, nil
 }
 
-func (b *Builder) buildJoinPlan(p *plan.JoinPlan, args ...driver.NamedValue) (Task, error) {
-	left, err := b.Build(p.Left, args...)
+func (b *Builder) buildJoinPlan(p *plan.JoinPlan) (Task, error) {
+	left, err := b.Build(p.Left)
 	if err != nil {
 		return nil, err
 	}
-	right, err := b.Build(p.Right, args...)
+	right, err := b.Build(p.Right)
 	if err != nil {
 		return nil, err
 	}
-	return &JoinTask{VM: b.vm, Left: left, Right: right, Join: p.Join, On: p.On, Using: p.Using, Args: args}, nil
+	return &JoinTask{VM: b.vm, Left: left, Right: right, Join: p.Join, On: p.On, Using: p.Using}, nil
 }
 
-func (b *Builder) buildFilterPlan(p *plan.FilterPlan, args ...driver.NamedValue) (Task, error) {
-	input, err := b.Build(p.Input, args...)
+func (b *Builder) buildFilterPlan(p *plan.FilterPlan) (Task, error) {
+	input, err := b.Build(p.Input)
 	if err != nil {
 		return nil, err
 	}
-	return &FilterTask{VM: b.vm, Input: input, Expr: p.Expr, Args: args}, nil
+	return &FilterTask{VM: b.vm, Input: input, Expr: p.Expr}, nil
 }
 
-func (b *Builder) buildProjectPlan(p *plan.ProjectPlan, args ...driver.NamedValue) (Task, error) {
-	input, err := b.Build(p.Input, args...)
+func (b *Builder) buildProjectPlan(p *plan.ProjectPlan) (Task, error) {
+	input, err := b.Build(p.Input)
 	if err != nil {
 		return nil, err
 	}
-	return &ProjectTask{VM: b.vm, Input: input, Exprs: p.Exprs, Args: args}, nil
+	return &ProjectTask{VM: b.vm, Input: input, Exprs: p.Exprs}, nil
 }
 
-func (b *Builder) buildGroupPlan(p *plan.GroupPlan, args ...driver.NamedValue) (Task, error) {
-	input, err := b.Build(p.Input, args...)
+func (b *Builder) buildGroupPlan(p *plan.GroupPlan) (Task, error) {
+	input, err := b.Build(p.Input)
 	if err != nil {
 		return nil, err
 	}
-	return &GroupTask{VM: b.vm, Input: input, Exprs: p.Exprs, Args: args}, nil
+	return &GroupTask{VM: b.vm, Input: input, Exprs: p.Exprs}, nil
 }
 
-func (b *Builder) buildOrderPlan(p *plan.OrderPlan, args ...driver.NamedValue) (Task, error) {
-	input, err := b.Build(p.Input, args...)
+func (b *Builder) buildOrderPlan(p *plan.OrderPlan) (Task, error) {
+	input, err := b.Build(p.Input)
 	if err != nil {
 		return nil, err
 	}
-	return &OrderTask{VM: b.vm, Input: input, Exprs: p.Exprs, Args: args}, nil
+	return &OrderTask{VM: b.vm, Input: input, Exprs: p.Exprs}, nil
 }
 
-func (b *Builder) buildLimitPlan(p *plan.LimitPlan, args ...driver.NamedValue) (Task, error) {
-	input, err := b.Build(p.Input, args...)
+func (b *Builder) buildLimitPlan(p *plan.LimitPlan) (Task, error) {
+	input, err := b.Build(p.Input)
 	if err != nil {
 		return nil, err
 	}
-	return &LimitTask{VM: b.vm, Input: input, Exprs: p.Exprs, Args: args}, nil
+	return &LimitTask{VM: b.vm, Input: input, Exprs: p.Exprs}, nil
 }

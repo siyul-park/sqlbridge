@@ -86,12 +86,19 @@ func (c *connection) PrepareContext(ctx context.Context, query string) (driver.S
 		if err != nil {
 			return nil, err
 		}
+
 		binds := sqlparser.GetBindvars(stmt)
+
 		p, err := c.planner.Plan(stmt)
 		if err != nil {
 			return nil, err
 		}
-		return &statement{builder: c.builder, plan: p, binds: binds}, nil
+
+		t, err := c.builder.Build(p)
+		if err != nil {
+			return nil, err
+		}
+		return &statement{task: t, binds: binds}, nil
 	}
 }
 

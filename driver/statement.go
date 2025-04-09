@@ -6,16 +6,14 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/siyul-park/sqlbridge/plan"
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/siyul-park/sqlbridge/task"
 	"github.com/xwb1989/sqlparser"
 )
 
 type statement struct {
-	builder *task.Builder
-	plan    plan.Plan
-	binds   map[string]struct{}
+	task  task.Task
+	binds map[string]struct{}
 }
 
 var _ driver.Stmt = (*statement)(nil)
@@ -35,12 +33,7 @@ func (s *statement) Query(args []driver.Value) (driver.Rows, error) {
 }
 
 func (s *statement) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
-	t, err := s.builder.Build(s.plan, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	cursor, err := t.Run(ctx)
+	cursor, err := s.task.Run(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -54,12 +47,7 @@ func (s *statement) ExecContext(ctx context.Context, args []driver.NamedValue) (
 }
 
 func (s *statement) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
-	t, err := s.builder.Build(s.plan, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	cursor, err := t.Run(ctx)
+	cursor, err := s.task.Run(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
