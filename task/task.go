@@ -397,7 +397,7 @@ func (t *LimitTask) Run(ctx context.Context) (schema.Cursor, error) {
 		if val, err := t.VM.Eval(t.Exprs.Offset, schema.Record{}, t.Args...); err != nil {
 			return nil, err
 		} else {
-			offset = t.VM.Int(val)
+			offset = int(t.VM.Int64(val))
 		}
 	}
 
@@ -406,7 +406,7 @@ func (t *LimitTask) Run(ctx context.Context) (schema.Cursor, error) {
 		if val, err := t.VM.Eval(t.Exprs.Rowcount, schema.Record{}, t.Args...); err != nil {
 			return nil, err
 		} else {
-			rowcount = t.VM.Int(val)
+			rowcount = int(t.VM.Int64(val))
 		}
 	}
 
