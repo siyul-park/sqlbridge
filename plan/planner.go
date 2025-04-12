@@ -7,6 +7,8 @@ import (
 	"math/big"
 	"strconv"
 
+	"github.com/xwb1989/sqlparser/dependency/sqltypes"
+
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser"
 	"github.com/xwb1989/sqlparser/dependency/querypb"
@@ -370,48 +372,62 @@ func (p *Planner) planComparisonExpr(expr *sqlparser.ComparisonExpr) (Expr, erro
 func (p *Planner) planSQLVal(expr *sqlparser.SQLVal) (Expr, error) {
 	switch expr.Type {
 	case sqlparser.StrVal:
-		return &Literal{Value: &querypb.BindVariable{Type: querypb.Type_VARCHAR, Value: expr.Val}}, nil
+		val, err := sqltypes.NewValue(sqltypes.VarChar, expr.Val)
+		if err != nil {
+			return nil, err
+		}
+		return &Literal{Value: val}, nil
 	case sqlparser.IntVal:
-		return &Literal{Value: &querypb.BindVariable{Type: querypb.Type_INT64, Value: expr.Val}}, nil
+		val, err := sqltypes.NewValue(sqltypes.Int64, expr.Val)
+		if err != nil {
+			return nil, err
+		}
+		return &Literal{Value: val}, nil
 	case sqlparser.FloatVal:
-		return &Literal{Value: &querypb.BindVariable{Type: querypb.Type_FLOAT64, Value: expr.Val}}, nil
+		val, err := sqltypes.NewValue(sqltypes.Float64, expr.Val)
+		if err != nil {
+			return nil, err
+		}
+		return &Literal{Value: val}, nil
 	case sqlparser.HexNum:
-		i, err := strconv.ParseUint(string(expr.Val), 16, 64)
-		if err != nil {
+		if i, err := strconv.ParseUint(string(expr.Val), 16, 64); err != nil {
 			return nil, err
-		}
-		_, data, err := Marshal(i)
-		if err != nil {
+		} else if _, data, err := Marshal(i); err != nil {
 			return nil, err
+		} else if val, err := sqltypes.NewValue(sqltypes.Uint64, data); err != nil {
+			return nil, err
+		} else {
+			return &Literal{Value: val}, nil
 		}
-		return &Literal{Value: &querypb.BindVariable{Type: querypb.Type_UINT64, Value: data}}, nil
 	case sqlparser.HexVal:
-		data, err := hex.DecodeString(string(expr.Val))
-		if err != nil {
+		if data, err := hex.DecodeString(string(expr.Val)); err != nil {
 			return nil, err
+		} else if val, err := sqltypes.NewValue(sqltypes.VarBinary, data); err != nil {
+			return nil, err
+		} else {
+			return &Literal{Value: val}, nil
 		}
-		return &Literal{Value: &querypb.BindVariable{Type: querypb.Type_VARBINARY, Value: data}}, nil
 	case sqlparser.ValArg:
 	case sqlparser.BitVal:
-		data := new(big.Int)
-		data, ok := data.SetString(string(expr.Val), 2)
-		if !ok {
+		if data, ok := new(big.Int).SetString(string(expr.Val), 2); !ok {
 			return nil, fmt.Errorf("invalid bit string '%s'", expr.Val)
+		} else if val, err := sqltypes.NewValue(sqltypes.Bit, data.Bytes()); err != nil {
+			return nil, err
+		} else {
+			return &Literal{Value: val}, nil
 		}
-		return &Literal{Value: &querypb.BindVariable{Type: querypb.Type_BIT, Value: data.Bytes()}}, nil
-
 	}
 	return nil, driver.ErrSkip
 }
 
 func (p *Planner) planNullValue(_ *sqlparser.NullVal) (Expr, error) {
-	return &Literal{Value: NULL}, nil
+	return &Literal{Value: sqltypes.NULL}, nil
 }
 
 func (p *Planner) planBoolVal(expr sqlparser.BoolVal) (Expr, error) {
-	val := TRUE
+	val := sqltypes.NewInt64(1)
 	if expr {
-		val = FALSE
+		val = sqltypes.NewInt64(0)
 	}
 	return &Literal{Value: val}, nil
 }

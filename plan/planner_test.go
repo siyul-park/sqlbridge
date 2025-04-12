@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/siyul-park/sqlbridge/schema"
-	"github.com/xwb1989/sqlparser/dependency/querypb"
 	"github.com/xwb1989/sqlparser/dependency/sqltypes"
 
 	"github.com/stretchr/testify/require"
@@ -65,7 +64,7 @@ func TestPlanner_Plan(t *testing.T) {
 					},
 					Expr: &Equal{
 						Left:  &Column{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
-						Right: &Literal{Value: &querypb.BindVariable{Type: querypb.Type_INT64, Value: []byte("0")}},
+						Right: &Literal{Value: sqltypes.NewInt64(0)},
 					},
 				},
 				Items: []ProjectionItem{&StartItem{}},

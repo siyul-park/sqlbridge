@@ -17,7 +17,7 @@ type LessThan struct {
 
 var _ Expr = (*LessThan)(nil)
 
-func (p *LessThan) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*querypb.BindVariable, error) {
+func (p *LessThan) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*EvalResult, error) {
 	left, err := p.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err

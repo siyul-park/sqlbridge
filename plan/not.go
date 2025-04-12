@@ -14,7 +14,7 @@ type Not struct {
 
 var _ Expr = (*Not)(nil)
 
-func (p *Not) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*querypb.BindVariable, error) {
+func (p *Not) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*EvalResult, error) {
 	val, err := p.Input.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err

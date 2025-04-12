@@ -19,7 +19,7 @@ type JSONExtract struct {
 
 var _ Expr = (*JSONExtract)(nil)
 
-func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*querypb.BindVariable, error) {
+func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*EvalResult, error) {
 	left, err := p.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string
 		if err != nil {
 			return nil, err
 		}
-		return &querypb.BindVariable{Type: typ, Value: val}, nil
+		return &EvalResult{Type: typ, Value: val}, nil
 	}
 	return NULL, nil
 }

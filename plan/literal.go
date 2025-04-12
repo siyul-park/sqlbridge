@@ -3,18 +3,20 @@ package plan
 import (
 	"context"
 
+	"github.com/xwb1989/sqlparser/dependency/sqltypes"
+
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser/dependency/querypb"
 )
 
 type Literal struct {
-	Value *querypb.BindVariable
+	Value sqltypes.Value
 }
 
 var _ Expr = (*Literal)(nil)
 
-func (e *Literal) Eval(_ context.Context, _ schema.Row, _ map[string]*querypb.BindVariable) (*querypb.BindVariable, error) {
-	return e.Value, nil
+func (e *Literal) Eval(_ context.Context, _ schema.Row, _ map[string]*querypb.BindVariable) (*EvalResult, error) {
+	return &EvalResult{Type: e.Value.Type(), Value: e.Value.Raw()}, nil
 }
 
 func (e *Literal) String() string {

@@ -17,7 +17,7 @@ type Convert struct {
 
 var _ Expr = (*Convert)(nil)
 
-func (p *Convert) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*querypb.BindVariable, error) {
+func (p *Convert) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*EvalResult, error) {
 	input, err := p.Input.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
@@ -36,31 +36,31 @@ func (p *Convert) Eval(ctx context.Context, row schema.Row, binds map[string]*qu
 		if err != nil {
 			return nil, err
 		}
-		return &querypb.BindVariable{Type: typ, Value: data}, nil
+		return &EvalResult{Type: typ, Value: data}, nil
 	case querypb.Type_UINT8, querypb.Type_UINT16, querypb.Type_UINT24, querypb.Type_UINT32, querypb.Type_UINT64:
 		_, data, err := Marshal(uint(ToInt(val)))
 		if err != nil {
 			return nil, err
 		}
-		return &querypb.BindVariable{Type: typ, Value: data}, nil
+		return &EvalResult{Type: typ, Value: data}, nil
 	case querypb.Type_FLOAT32:
 		_, data, err := Marshal(float32(ToFloat(val)))
 		if err != nil {
 			return nil, err
 		}
-		return &querypb.BindVariable{Type: typ, Value: data}, nil
+		return &EvalResult{Type: typ, Value: data}, nil
 	case querypb.Type_FLOAT64:
 		_, data, err := Marshal(ToFloat(val))
 		if err != nil {
 			return nil, err
 		}
-		return &querypb.BindVariable{Type: typ, Value: data}, nil
+		return &EvalResult{Type: typ, Value: data}, nil
 	case querypb.Type_TEXT, querypb.Type_VARCHAR, querypb.Type_CHAR, querypb.Type_ENUM, querypb.Type_SET:
 		_, data, err := Marshal(ToString(val))
 		if err != nil {
 			return nil, err
 		}
-		return &querypb.BindVariable{Type: typ, Value: data}, nil
+		return &EvalResult{Type: typ, Value: data}, nil
 	default:
 		v, err := Unmarshal(typ, []byte(ToString(val)))
 		if err != nil {
@@ -70,7 +70,7 @@ func (p *Convert) Eval(ctx context.Context, row schema.Row, binds map[string]*qu
 		if err != nil {
 			return nil, err
 		}
-		return &querypb.BindVariable{Type: typ, Value: data}, nil
+		return &EvalResult{Type: typ, Value: data}, nil
 	}
 }
 

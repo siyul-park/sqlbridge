@@ -11,8 +11,3 @@ type Plan interface {
 	Run(ctx context.Context, binds map[string]*querypb.BindVariable) (schema.Cursor, error)
 	String() string
 }
-
-type Expr interface {
-	Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*querypb.BindVariable, error)
-	String() string
-}

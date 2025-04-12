@@ -15,11 +15,11 @@ type Column struct {
 
 var _ Expr = (*Column)(nil)
 
-func (p *Column) Eval(_ context.Context, row schema.Row, _ map[string]*querypb.BindVariable) (*querypb.BindVariable, error) {
+func (p *Column) Eval(_ context.Context, row schema.Row, _ map[string]*querypb.BindVariable) (*EvalResult, error) {
 	for i, col := range row.Columns {
 		if col.Equal(p.Value) {
 			val := row.Values[i]
-			return &querypb.BindVariable{Type: val.Type(), Value: val.Raw()}, nil
+			return &EvalResult{Type: val.Type(), Value: val.Raw()}, nil
 		}
 	}
 	return NULL, nil

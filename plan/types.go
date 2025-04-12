@@ -11,10 +11,6 @@ import (
 	"github.com/xwb1989/sqlparser/dependency/querypb"
 )
 
-var NULL = &querypb.BindVariable{Type: querypb.Type_NULL_TYPE}
-var TRUE = &querypb.BindVariable{Type: querypb.Type_INT64, Value: []byte("1")}
-var FALSE = &querypb.BindVariable{Type: querypb.Type_INT64, Value: []byte("0")}
-
 func ToBool(val any) bool {
 	rval := reflect.ValueOf(val)
 	switch rval.Kind() {
