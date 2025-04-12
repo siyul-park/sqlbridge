@@ -16,7 +16,7 @@ type Equal struct {
 
 var _ Expr = (*Equal)(nil)
 
-func (p *Equal) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*EvalResult, error) {
+func (p *Equal) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*schema.Value, error) {
 	left, err := p.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
@@ -36,9 +36,9 @@ func (p *Equal) Eval(ctx context.Context, row schema.Row, binds map[string]*quer
 	}
 
 	if reflect.DeepEqual(Promote(lhs, rhs)) {
-		return TRUE, nil
+		return schema.True, nil
 	}
-	return FALSE, nil
+	return schema.False, nil
 }
 
 func (p *Equal) String() string {

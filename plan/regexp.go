@@ -16,7 +16,7 @@ type Regexp struct {
 
 var _ Expr = (*Regexp)(nil)
 
-func (p *Regexp) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*EvalResult, error) {
+func (p *Regexp) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*schema.Value, error) {
 	left, err := p.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
@@ -44,9 +44,9 @@ func (p *Regexp) Eval(ctx context.Context, row schema.Row, binds map[string]*que
 	}
 
 	if re.MatchString(lstr) {
-		return TRUE, nil
+		return schema.True, nil
 	}
-	return FALSE, nil
+	return schema.False, nil
 }
 
 func (p *Regexp) String() string {

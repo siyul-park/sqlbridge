@@ -37,7 +37,8 @@ func TestPlanner_Plan(t *testing.T) {
 			},
 			plan: &Projection{
 				Input: &Alias{
-					Input: &Scan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, As: sqlparser.NewTableIdent("t1"),
+					Input: &Scan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+					As:    sqlparser.NewTableIdent("t1"),
 				},
 				Items: []ProjectionItem{&StartItem{}},
 			},
@@ -60,7 +61,8 @@ func TestPlanner_Plan(t *testing.T) {
 			plan: &Projection{
 				Input: &Filter{
 					Input: &Alias{
-						Input: &Scan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}}, As: sqlparser.NewTableIdent("t1"),
+						Input: &Scan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+						As:    sqlparser.NewTableIdent("t1"),
 					},
 					Expr: &Equal{
 						Left:  &Column{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},

@@ -19,7 +19,7 @@ type JSONExtract struct {
 
 var _ Expr = (*JSONExtract)(nil)
 
-func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*EvalResult, error) {
+func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*schema.Value, error) {
 	left, err := p.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string
 						if curr.Kind() == reflect.Slice && index < curr.Len() {
 							curr = curr.Index(index)
 						} else {
-							return NULL, fmt.Errorf("index '%d' out of range", index)
+							return schema.Null, fmt.Errorf("index '%d' out of range", index)
 						}
 					} else {
 						key = key[1 : len(key)-1]
@@ -80,7 +80,7 @@ func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string
 				if curr.Kind() == reflect.Map {
 					curr = curr.MapIndex(reflect.ValueOf(key))
 					if !curr.IsValid() {
-						return NULL, fmt.Errorf("key '%s' not found", key)
+						return schema.Null, fmt.Errorf("key '%s' not found", key)
 					}
 				}
 			}
@@ -101,9 +101,9 @@ func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string
 		if err != nil {
 			return nil, err
 		}
-		return &EvalResult{Type: typ, Value: val}, nil
+		return &schema.Value{Type: typ, Value: val}, nil
 	}
-	return NULL, nil
+	return schema.Null, nil
 }
 
 func (p *JSONExtract) String() string {

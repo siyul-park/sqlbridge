@@ -16,7 +16,7 @@ type In struct {
 
 var _ Expr = (*In)(nil)
 
-func (p *In) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*EvalResult, error) {
+func (p *In) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*schema.Value, error) {
 	left, err := p.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (p *In) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb
 				return nil, err
 			}
 			if reflect.DeepEqual(Promote(rhs, lhs)) {
-				return TRUE, nil
+				return schema.True, nil
 			}
 		}
 	} else {
@@ -47,11 +47,10 @@ func (p *In) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb
 			return nil, err
 		}
 		if reflect.DeepEqual(Promote(rhs, lhs)) {
-			return TRUE, nil
+			return schema.True, nil
 		}
 	}
-
-	return FALSE, nil
+	return schema.False, nil
 }
 
 func (p *In) String() string {

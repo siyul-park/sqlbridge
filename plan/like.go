@@ -17,7 +17,7 @@ type Like struct {
 
 var _ Expr = (*Like)(nil)
 
-func (p *Like) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*EvalResult, error) {
+func (p *Like) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*schema.Value, error) {
 	left, err := p.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
@@ -49,9 +49,9 @@ func (p *Like) Eval(ctx context.Context, row schema.Row, binds map[string]*query
 	}
 
 	if re.MatchString(lstr) {
-		return TRUE, nil
+		return schema.True, nil
 	}
-	return FALSE, nil
+	return schema.False, nil
 }
 
 func (p *Like) String() string {

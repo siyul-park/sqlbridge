@@ -15,7 +15,7 @@ type And struct {
 
 var _ Expr = (*And)(nil)
 
-func (p *And) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*EvalResult, error) {
+func (p *And) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*schema.Value, error) {
 	left, err := p.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
@@ -25,7 +25,7 @@ func (p *And) Eval(ctx context.Context, row schema.Row, binds map[string]*queryp
 		return nil, err
 	}
 	if !ToBool(lhs) {
-		return FALSE, nil
+		return schema.False, nil
 	}
 
 	right, err := p.Right.Eval(ctx, row, binds)
@@ -37,10 +37,10 @@ func (p *And) Eval(ctx context.Context, row schema.Row, binds map[string]*queryp
 		return nil, err
 	}
 	if !ToBool(rhs) {
-		return FALSE, nil
+		return schema.False, nil
 	}
 
-	return TRUE, nil
+	return schema.True, nil
 }
 
 func (p *And) String() string {
