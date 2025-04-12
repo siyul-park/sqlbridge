@@ -1,0 +1,107 @@
+package plan
+
+import (
+	"context"
+	"fmt"
+	"reflect"
+
+	"github.com/siyul-park/sqlbridge/schema"
+	"github.com/xwb1989/sqlparser"
+	"github.com/xwb1989/sqlparser/dependency/querypb"
+)
+
+type Join struct {
+	Left  Plan
+	Right Plan
+	Join  string
+	On    Expr
+	Using []Expr
+}
+
+var _ Plan = (*Join)(nil)
+
+func (p *Join) Run(ctx context.Context, binds map[string]*querypb.BindVariable) (schema.Cursor, error) {
+	left, err := p.Left.Run(ctx, binds)
+	if err != nil {
+		return nil, err
+	}
+	right, err := p.Right.Run(ctx, binds)
+	if err != nil {
+		return nil, err
+	}
+
+	lrows, err := schema.ReadAll(left)
+	if err != nil {
+		return nil, err
+	}
+	rrows, err := schema.ReadAll(right)
+	if err != nil {
+		return nil, err
+	}
+
+	var joins []schema.Row
+	switch p.Join {
+	case sqlparser.JoinStr:
+		for _, lrow := range lrows {
+			for _, rrow := range rrows {
+				join := schema.Row{
+					Columns: append(lrow.Columns, rrow.Columns...),
+					Values:  append(lrow.Values, rrow.Values...),
+				}
+
+				if p.On != nil {
+					val, err := p.On.Eval(ctx, join, binds)
+					if err != nil {
+						return nil, err
+					}
+					v, err := Unmarshal(val.Type, val.Value)
+					if err != nil {
+						return nil, err
+					}
+					if !ToBool(v) {
+						continue
+					}
+				}
+
+				ok := true
+				for _, using := range p.Using {
+					lval, err := using.Eval(ctx, lrow, binds)
+					if err != nil {
+						return nil, err
+					}
+					lhs, err := Unmarshal(lval.Type, lval.Value)
+					if err != nil {
+						return nil, err
+					}
+
+					rval, err := using.Eval(ctx, rrow, binds)
+					if err != nil {
+						return nil, err
+					}
+					rhs, err := Unmarshal(rval.Type, rval.Value)
+					if err != nil {
+						return nil, err
+					}
+
+					if !reflect.DeepEqual(Promote(lhs, rhs)) {
+						ok = false
+						break
+					}
+				}
+				if !ok {
+					continue
+				}
+
+				joins = append(joins, join)
+			}
+		}
+	default:
+		return nil, fmt.Errorf("unknown join type: %s", p.Join)
+	}
+
+	return schema.NewInMemoryCursor(joins), nil
+}
+
+func (p *Join) String() string {
+	return fmt.Sprintf("Join(%s, %s, %s, %s)", p.Left.String(), p.Right.String(), p.Join, p.On.String())
+}
