@@ -3,7 +3,8 @@ package plan
 import (
 	"context"
 	"fmt"
-	"reflect"
+
+	"github.com/siyul-park/sqlbridge/eval"
 
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser"
@@ -14,8 +15,8 @@ type Join struct {
 	Left  Plan
 	Right Plan
 	Join  string
-	On    Expr
-	Using []Expr
+	On    eval.Expr
+	Using []eval.Expr
 }
 
 var _ Plan = (*Join)(nil)
@@ -54,11 +55,7 @@ func (p *Join) Run(ctx context.Context, binds map[string]*querypb.BindVariable) 
 					if err != nil {
 						return nil, err
 					}
-					v, err := Unmarshal(val.Type, val.Value)
-					if err != nil {
-						return nil, err
-					}
-					if !ToBool(v) {
+					if !eval.ToBool(val) {
 						continue
 					}
 				}
@@ -69,21 +66,14 @@ func (p *Join) Run(ctx context.Context, binds map[string]*querypb.BindVariable) 
 					if err != nil {
 						return nil, err
 					}
-					lhs, err := Unmarshal(lval.Type, lval.Value)
-					if err != nil {
-						return nil, err
-					}
-
 					rval, err := using.Eval(ctx, rrow, binds)
 					if err != nil {
 						return nil, err
 					}
-					rhs, err := Unmarshal(rval.Type, rval.Value)
-					if err != nil {
-						return nil, err
-					}
 
-					if !reflect.DeepEqual(Promote(lhs, rhs)) {
+					if cmp, err := eval.Compare(lval, rval); err != nil {
+						return nil, err
+					} else if cmp == 0 {
 						ok = false
 						break
 					}

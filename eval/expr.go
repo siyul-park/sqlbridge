@@ -1,4 +1,4 @@
-package plan
+package eval
 
 import (
 	"context"
@@ -8,6 +8,6 @@ import (
 )
 
 type Expr interface {
-	Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*schema.Value, error)
+	Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error)
 	String() string
 }

@@ -1,4 +1,4 @@
-package plan
+package eval
 
 import (
 	"context"
@@ -15,32 +15,20 @@ type Or struct {
 
 var _ Expr = (*Or)(nil)
 
-func (p *Or) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*schema.Value, error) {
+func (p *Or) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
 	left, err := p.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
-	lhs, err := Unmarshal(left.Type, left.Value)
-	if err != nil {
-		return nil, err
-	}
-	if ToBool(lhs) {
-		return schema.True, nil
+	if ToBool(left) {
+		return True, nil
 	}
 
 	right, err := p.Right.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
-	rhs, err := Unmarshal(right.Type, right.Value)
-	if err != nil {
-		return nil, err
-	}
-	if ToBool(rhs) {
-		return schema.True, nil
-	}
-
-	return schema.False, nil
+	return NewBool(ToBool(right)), nil
 }
 
 func (p *Or) String() string {

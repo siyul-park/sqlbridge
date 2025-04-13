@@ -1,4 +1,4 @@
-package plan
+package eval
 
 import (
 	"context"
@@ -15,14 +15,13 @@ type Column struct {
 
 var _ Expr = (*Column)(nil)
 
-func (p *Column) Eval(_ context.Context, row schema.Row, _ map[string]*querypb.BindVariable) (*schema.Value, error) {
+func (p *Column) Eval(_ context.Context, row schema.Row, _ map[string]*querypb.BindVariable) (Value, error) {
 	for i, col := range row.Columns {
 		if col.Equal(p.Value) {
-			val := row.Values[i]
-			return &schema.Value{Type: val.Type(), Value: val.Raw()}, nil
+			return FromSQL(row.Values[i])
 		}
 	}
-	return schema.Null, nil
+	return nil, nil
 }
 
 func (p *Column) String() string {

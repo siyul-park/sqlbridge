@@ -1,4 +1,4 @@
-package plan
+package eval
 
 import (
 	"context"
@@ -17,29 +17,26 @@ type Like struct {
 
 var _ Expr = (*Like)(nil)
 
-func (p *Like) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*schema.Value, error) {
+func (p *Like) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
 	left, err := p.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
-	lhs, err := Unmarshal(left.Type, left.Value)
-	if err != nil {
-		return nil, err
-	}
-
 	right, err := p.Right.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
-	rhs, err := Unmarshal(right.Type, right.Value)
+
+	lhs, err := ToString(left)
+	if err != nil {
+		return nil, err
+	}
+	rhs, err := ToString(right)
 	if err != nil {
 		return nil, err
 	}
 
-	lstr := ToString(lhs)
-	rstr := ToString(rhs)
-
-	pattern := "^" + regexp.QuoteMeta(rstr) + "$"
+	pattern := "^" + regexp.QuoteMeta(rhs) + "$"
 	pattern = strings.ReplaceAll(pattern, `%`, `.*`)
 	pattern = strings.ReplaceAll(pattern, `_`, `.`)
 
@@ -48,10 +45,10 @@ func (p *Like) Eval(ctx context.Context, row schema.Row, binds map[string]*query
 		return nil, err
 	}
 
-	if re.MatchString(lstr) {
-		return schema.True, nil
+	if re.MatchString(lhs) {
+		return True, nil
 	}
-	return schema.False, nil
+	return False, nil
 }
 
 func (p *Like) String() string {

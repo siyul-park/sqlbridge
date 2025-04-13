@@ -4,13 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/siyul-park/sqlbridge/eval"
+
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser/dependency/querypb"
 )
 
 type Filter struct {
 	Input Plan
-	Expr  Expr
+	Expr  eval.Expr
 }
 
 var _ Plan = (*Filter)(nil)
@@ -25,11 +27,7 @@ func (p *Filter) Run(ctx context.Context, binds map[string]*querypb.BindVariable
 		if err != nil {
 			return schema.Row{}, err
 		}
-		v, err := Unmarshal(val.Type, val.Value)
-		if err != nil {
-			return schema.Row{}, err
-		}
-		if !ToBool(v) {
+		if !eval.ToBool(val) {
 			return schema.Row{}, nil
 		}
 		return row, nil

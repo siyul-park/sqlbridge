@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/siyul-park/sqlbridge/eval"
+
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser"
 	"github.com/xwb1989/sqlparser/dependency/querypb"
@@ -26,7 +28,7 @@ type StartItem struct {
 }
 
 type AliasItem struct {
-	Expr Expr
+	Expr eval.Expr
 	As   sqlparser.ColIdent
 }
 
@@ -55,13 +57,16 @@ func (p *Projection) Run(ctx context.Context, binds map[string]*querypb.BindVari
 					values = append(values, val)
 				}
 			case *AliasItem:
-				col := &sqlparser.ColName{Name: term.As}
 				val, err := term.Expr.Eval(ctx, row, binds)
 				if err != nil {
 					return schema.Row{}, err
 				}
-				columns = append(columns, col)
-				values = append(values, sqltypes.MakeTrusted(val.Type, val.Value))
+				v, err := eval.ToSQL(val, val.Type())
+				if err != nil {
+					return schema.Row{}, err
+				}
+				columns = append(columns, &sqlparser.ColName{Name: term.As})
+				values = append(values, v)
 			}
 		}
 		row.Columns = columns

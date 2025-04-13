@@ -1,4 +1,4 @@
-package plan
+package eval
 
 import (
 	"context"
@@ -19,12 +19,8 @@ type JSONExtract struct {
 
 var _ Expr = (*JSONExtract)(nil)
 
-func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*schema.Value, error) {
+func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
 	left, err := p.Left.Eval(ctx, row, binds)
-	if err != nil {
-		return nil, err
-	}
-	lhs, err := Unmarshal(left.Type, left.Value)
 	if err != nil {
 		return nil, err
 	}
@@ -33,27 +29,31 @@ func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string
 	if err != nil {
 		return nil, err
 	}
-	rhs, err := Unmarshal(right.Type, right.Value)
+
+	lhs, err := ToString(left)
 	if err != nil {
 		return nil, err
 	}
 
-	lstr := ToString(lhs)
-	rstr := ToString(rhs)
-
-	var data any
-	if err := json.Unmarshal([]byte(lstr), &data); err != nil {
+	rhs, err := ToString(right)
+	if err != nil {
 		return nil, err
 	}
 
+	var data any
+	if err := json.Unmarshal([]byte(lhs), &data); err != nil {
+		return nil, err
+	}
+
+	key := []rune(rhs)
 	curr := reflect.ValueOf(data)
-	rrune := []rune(rstr)
 
 	quotation := false
 	apostrophe := false
+
 	j := 0
-	for i := 0; i < len(rrune); i++ {
-		ch := rrune[i]
+	for i := 0; i < len(key); i++ {
+		ch := key[i]
 
 		switch ch {
 		case '.', '[', ']':
@@ -61,7 +61,7 @@ func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string
 				continue
 			}
 			if j < i-1 {
-				key := string(rrune[j:i])
+				key := string(key[j:i])
 				if ch == ']' {
 					if !strings.HasPrefix(key, "\"") || !strings.HasSuffix(key, "\"") {
 						index, err := strconv.Atoi(key)
@@ -71,7 +71,7 @@ func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string
 						if curr.Kind() == reflect.Slice && index < curr.Len() {
 							curr = curr.Index(index)
 						} else {
-							return schema.Null, fmt.Errorf("index '%d' out of range", index)
+							return nil, fmt.Errorf("index '%d' out of range", index)
 						}
 					} else {
 						key = key[1 : len(key)-1]
@@ -80,7 +80,7 @@ func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string
 				if curr.Kind() == reflect.Map {
 					curr = curr.MapIndex(reflect.ValueOf(key))
 					if !curr.IsValid() {
-						return schema.Null, fmt.Errorf("key '%s' not found", key)
+						return nil, fmt.Errorf("rhs '%s' not found", key)
 					}
 				}
 			}
@@ -95,15 +95,10 @@ func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string
 			}
 		}
 	}
-
-	if curr.IsValid() {
-		typ, val, err := Marshal(curr.Interface())
-		if err != nil {
-			return nil, err
-		}
-		return &schema.Value{Type: typ, Value: val}, nil
+	if !curr.IsValid() {
+		return nil, nil
 	}
-	return schema.Null, nil
+	return NewValue(curr.Interface()), nil
 }
 
 func (p *JSONExtract) String() string {

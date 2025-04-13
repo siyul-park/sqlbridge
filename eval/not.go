@@ -1,4 +1,4 @@
-package plan
+package eval
 
 import (
 	"context"
@@ -14,19 +14,12 @@ type Not struct {
 
 var _ Expr = (*Not)(nil)
 
-func (p *Not) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*schema.Value, error) {
+func (p *Not) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
 	val, err := p.Input.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
-	v, err := Unmarshal(val.Type, val.Value)
-	if err != nil {
-		return nil, err
-	}
-	if !ToBool(v) {
-		return schema.True, nil
-	}
-	return schema.False, nil
+	return NewBool(!ToBool(val)), nil
 }
 
 func (p *Not) String() string {

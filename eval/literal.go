@@ -1,12 +1,11 @@
-package plan
+package eval
 
 import (
 	"context"
 
-	"github.com/xwb1989/sqlparser/dependency/sqltypes"
-
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser/dependency/querypb"
+	"github.com/xwb1989/sqlparser/dependency/sqltypes"
 )
 
 type Literal struct {
@@ -15,8 +14,8 @@ type Literal struct {
 
 var _ Expr = (*Literal)(nil)
 
-func (e *Literal) Eval(_ context.Context, _ schema.Row, _ map[string]*querypb.BindVariable) (*schema.Value, error) {
-	return &schema.Value{Type: e.Value.Type(), Value: e.Value.Raw()}, nil
+func (e *Literal) Eval(_ context.Context, _ schema.Row, _ map[string]*querypb.BindVariable) (Value, error) {
+	return FromSQL(e.Value)
 }
 
 func (e *Literal) String() string {

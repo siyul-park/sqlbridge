@@ -2,24 +2,23 @@ package plan
 
 import (
 	"database/sql/driver"
-	"encoding/hex"
-	"fmt"
-	"math/big"
-	"strconv"
 
-	"github.com/xwb1989/sqlparser/dependency/sqltypes"
+	"github.com/siyul-park/sqlbridge/eval"
 
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser"
-	"github.com/xwb1989/sqlparser/dependency/querypb"
 )
 
 type Planner struct {
 	catalog schema.Catalog
+	builder *eval.Builder
 }
 
 func NewPlanner(catalog schema.Catalog) *Planner {
-	return &Planner{catalog: catalog}
+	return &Planner{
+		catalog: catalog,
+		builder: eval.NewBuilder(),
+	}
 }
 
 func (p *Planner) Plan(node sqlparser.Statement) (Plan, error) {
@@ -161,14 +160,14 @@ func (p *Planner) planJoinTableExpr(node *sqlparser.JoinTableExpr) (Plan, error)
 	}
 
 	if node.Condition.On != nil {
-		expr, err := p.planExpr(node.Condition.On)
+		expr, err := p.builder.Build(node.Condition.On)
 		if err != nil {
 			return nil, err
 		}
 		plan.On = expr
 	}
 	for _, using := range node.Condition.Using {
-		plan.Using = append(plan.Using, &Column{Value: &sqlparser.ColName{Name: using}})
+		plan.Using = append(plan.Using, &eval.Column{Value: &sqlparser.ColName{Name: using}})
 	}
 
 	return plan, nil
@@ -184,7 +183,7 @@ func (p *Planner) planSubquery(node *sqlparser.Subquery) (Plan, error) {
 
 func (p *Planner) planWhere(input Plan, node *sqlparser.Where) (Plan, error) {
 	if node != nil {
-		expr, err := p.planExpr(node.Expr)
+		expr, err := p.builder.Build(node.Expr)
 		if err != nil {
 			return nil, err
 		}
@@ -202,7 +201,7 @@ func (p *Planner) planGroupBy(input Plan, node sqlparser.GroupBy) (Plan, error) 
 
 func (p *Planner) planHaving(input Plan, node *sqlparser.Where) (Plan, error) {
 	if node != nil {
-		expr, err := p.planExpr(node.Expr)
+		expr, err := p.builder.Build(node.Expr)
 		if err != nil {
 			return nil, err
 		}
@@ -222,7 +221,7 @@ func (p *Planner) planSelectExprs(input Plan, node sqlparser.SelectExprs) (Plan,
 			case *sqlparser.StarExpr:
 				items = append(items, &StartItem{Table: e.TableName})
 			case *sqlparser.AliasedExpr:
-				expr, err := p.planExpr(e.Expr)
+				expr, err := p.builder.Build(e.Expr)
 				if err != nil {
 					return nil, err
 				}
@@ -245,193 +244,4 @@ func (p *Planner) planOrderBy(input Plan, node sqlparser.OrderBy) (Plan, error) 
 
 func (p *Planner) planLimit(input Plan, node *sqlparser.Limit) (Plan, error) {
 	return input, nil
-}
-
-func (p *Planner) planExpr(expr sqlparser.Expr) (Expr, error) {
-	switch expr := expr.(type) {
-	case *sqlparser.AndExpr:
-		return p.planAndExpr(expr)
-	case *sqlparser.OrExpr:
-		return p.planOrExpr(expr)
-	case *sqlparser.NotExpr:
-		return p.planNotExpr(expr)
-	case *sqlparser.ParenExpr:
-		return p.planParenExpr(expr)
-	case *sqlparser.ComparisonExpr:
-		return p.planComparisonExpr(expr)
-	case *sqlparser.RangeCond:
-	case *sqlparser.IsExpr:
-	case *sqlparser.ExistsExpr:
-	case *sqlparser.SQLVal:
-		return p.planSQLVal(expr)
-	case *sqlparser.NullVal:
-		return p.planNullValue(expr)
-	case sqlparser.BoolVal:
-		return p.planBoolVal(expr)
-	case *sqlparser.ColName:
-		return p.planColName(expr)
-	case sqlparser.ValTuple:
-	case sqlparser.ListArg:
-	case *sqlparser.BinaryExpr:
-	case *sqlparser.UnaryExpr:
-	case *sqlparser.IntervalExpr:
-	case *sqlparser.CollateExpr:
-	case *sqlparser.FuncExpr:
-	case *sqlparser.CaseExpr:
-	case *sqlparser.ValuesFuncExpr:
-	case *sqlparser.ConvertExpr:
-	case *sqlparser.SubstrExpr:
-	case *sqlparser.ConvertUsingExpr:
-	case *sqlparser.MatchExpr:
-	case *sqlparser.GroupConcatExpr:
-	case *sqlparser.Default:
-	}
-	return nil, driver.ErrSkip
-}
-
-func (p *Planner) planAndExpr(expr *sqlparser.AndExpr) (Expr, error) {
-	left, err := p.planExpr(expr.Left)
-	if err != nil {
-		return nil, err
-	}
-	right, err := p.planExpr(expr.Right)
-	if err != nil {
-		return nil, err
-	}
-	return &And{Left: left, Right: right}, nil
-}
-
-func (p *Planner) planOrExpr(expr *sqlparser.OrExpr) (Expr, error) {
-	left, err := p.planExpr(expr.Left)
-	if err != nil {
-		return nil, err
-	}
-	right, err := p.planExpr(expr.Right)
-	if err != nil {
-		return nil, err
-	}
-	return &Or{Left: left, Right: right}, nil
-}
-
-func (p *Planner) planNotExpr(expr *sqlparser.NotExpr) (Expr, error) {
-	input, err := p.planExpr(expr.Expr)
-	if err != nil {
-		return nil, err
-	}
-	return &Not{Input: input}, nil
-}
-
-func (p *Planner) planParenExpr(expr *sqlparser.ParenExpr) (Expr, error) {
-	return p.planExpr(expr.Expr)
-}
-
-func (p *Planner) planComparisonExpr(expr *sqlparser.ComparisonExpr) (Expr, error) {
-	left, err := p.planExpr(expr.Left)
-	if err != nil {
-		return nil, err
-	}
-	right, err := p.planExpr(expr.Right)
-	if err != nil {
-		return nil, err
-	}
-
-	switch expr.Operator {
-	case sqlparser.EqualStr, sqlparser.NullSafeEqualStr:
-		return &Equal{Left: left, Right: right}, nil
-	case sqlparser.NotEqualStr:
-		return &Not{Input: &Equal{Left: left, Right: right}}, nil
-	case sqlparser.LessThanStr:
-		return &LessThan{Left: left, Right: right}, nil
-	case sqlparser.LessEqualStr:
-		return &Or{Left: &LessThan{Left: left, Right: right}, Right: &Equal{Left: left, Right: right}}, nil
-	case sqlparser.GreaterThanStr:
-		return &Not{Input: &Or{Left: &LessThan{Left: left, Right: right}, Right: &Equal{Left: left, Right: right}}}, nil
-	case sqlparser.GreaterEqualStr:
-		return &Not{Input: &LessThan{Left: left, Right: right}}, nil
-	case sqlparser.InStr:
-		return &In{Left: left, Right: right}, nil
-	case sqlparser.NotInStr:
-		return &Not{Input: &In{Left: left, Right: right}}, nil
-	case sqlparser.LikeStr:
-		return &Like{Left: left, Right: right}, nil
-	case sqlparser.NotLikeStr:
-		return &Not{Input: &Like{Left: left, Right: right}}, nil
-	case sqlparser.RegexpStr:
-		return &Regexp{Left: left, Right: right}, nil
-	case sqlparser.NotRegexpStr:
-		return &Not{Input: &Regexp{Left: left, Right: right}}, nil
-	case sqlparser.JSONExtractOp:
-		return &JSONExtract{Left: left, Right: right}, nil
-	case sqlparser.JSONUnquoteExtractOp:
-		return &Convert{Input: &JSONExtract{Left: left, Right: right}, Type: &sqlparser.ConvertType{Type: querypb.Type_name[int32(querypb.Type_VARCHAR)]}}, nil
-	default:
-		return nil, fmt.Errorf("unsupported comparison operator %s", expr.Operator)
-	}
-}
-
-func (p *Planner) planSQLVal(expr *sqlparser.SQLVal) (Expr, error) {
-	switch expr.Type {
-	case sqlparser.StrVal:
-		val, err := sqltypes.NewValue(sqltypes.VarChar, expr.Val)
-		if err != nil {
-			return nil, err
-		}
-		return &Literal{Value: val}, nil
-	case sqlparser.IntVal:
-		val, err := sqltypes.NewValue(sqltypes.Int64, expr.Val)
-		if err != nil {
-			return nil, err
-		}
-		return &Literal{Value: val}, nil
-	case sqlparser.FloatVal:
-		val, err := sqltypes.NewValue(sqltypes.Float64, expr.Val)
-		if err != nil {
-			return nil, err
-		}
-		return &Literal{Value: val}, nil
-	case sqlparser.HexNum:
-		if i, err := strconv.ParseUint(string(expr.Val), 16, 64); err != nil {
-			return nil, err
-		} else if _, data, err := Marshal(i); err != nil {
-			return nil, err
-		} else if val, err := sqltypes.NewValue(sqltypes.Uint64, data); err != nil {
-			return nil, err
-		} else {
-			return &Literal{Value: val}, nil
-		}
-	case sqlparser.HexVal:
-		if data, err := hex.DecodeString(string(expr.Val)); err != nil {
-			return nil, err
-		} else if val, err := sqltypes.NewValue(sqltypes.VarBinary, data); err != nil {
-			return nil, err
-		} else {
-			return &Literal{Value: val}, nil
-		}
-	case sqlparser.ValArg:
-	case sqlparser.BitVal:
-		if data, ok := new(big.Int).SetString(string(expr.Val), 2); !ok {
-			return nil, fmt.Errorf("invalid bit string '%s'", expr.Val)
-		} else if val, err := sqltypes.NewValue(sqltypes.Bit, data.Bytes()); err != nil {
-			return nil, err
-		} else {
-			return &Literal{Value: val}, nil
-		}
-	}
-	return nil, driver.ErrSkip
-}
-
-func (p *Planner) planNullValue(_ *sqlparser.NullVal) (Expr, error) {
-	return &Literal{Value: sqltypes.NULL}, nil
-}
-
-func (p *Planner) planBoolVal(expr sqlparser.BoolVal) (Expr, error) {
-	val := sqltypes.NewInt64(1)
-	if expr {
-		val = sqltypes.NewInt64(0)
-	}
-	return &Literal{Value: val}, nil
-}
-
-func (p *Planner) planColName(expr *sqlparser.ColName) (Expr, error) {
-	return &Column{Value: expr}, nil
 }

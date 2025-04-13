@@ -3,6 +3,8 @@ package plan
 import (
 	"testing"
 
+	"github.com/siyul-park/sqlbridge/eval"
+
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser/dependency/sqltypes"
 
@@ -64,9 +66,9 @@ func TestPlanner_Plan(t *testing.T) {
 						Input: &Scan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 						As:    sqlparser.NewTableIdent("t1"),
 					},
-					Expr: &Equal{
-						Left:  &Column{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
-						Right: &Literal{Value: sqltypes.NewInt64(0)},
+					Expr: &eval.Equal{
+						Left:  &eval.Column{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
+						Right: &eval.Literal{Value: sqltypes.NewInt64(0)},
 					},
 				},
 				Items: []ProjectionItem{&StartItem{}},

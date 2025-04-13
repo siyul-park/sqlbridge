@@ -1,4 +1,4 @@
-package plan
+package eval
 
 import (
 	"context"
@@ -16,37 +16,34 @@ type Regexp struct {
 
 var _ Expr = (*Regexp)(nil)
 
-func (p *Regexp) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (*schema.Value, error) {
+func (p *Regexp) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
 	left, err := p.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
-	lhs, err := Unmarshal(left.Type, left.Value)
-	if err != nil {
-		return nil, err
-	}
-
 	right, err := p.Right.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
-	rhs, err := Unmarshal(right.Type, right.Value)
+
+	lhs, err := ToString(left)
+	if err != nil {
+		return nil, err
+	}
+	rhs, err := ToString(right)
 	if err != nil {
 		return nil, err
 	}
 
-	lstr := ToString(lhs)
-	rstr := ToString(rhs)
-
-	re, err := regexp.Compile(rstr)
+	re, err := regexp.Compile(rhs)
 	if err != nil {
 		return nil, err
 	}
 
-	if re.MatchString(lstr) {
-		return schema.True, nil
+	if re.MatchString(lhs) {
+		return True, nil
 	}
-	return schema.False, nil
+	return False, nil
 }
 
 func (p *Regexp) String() string {
