@@ -16,12 +16,12 @@ type Regexp struct {
 
 var _ Expr = (*Regexp)(nil)
 
-func (p *Regexp) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
-	left, err := p.Left.Eval(ctx, row, binds)
+func (e *Regexp) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
+	left, err := e.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
-	right, err := p.Right.Eval(ctx, row, binds)
+	right, err := e.Right.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
@@ -40,12 +40,9 @@ func (p *Regexp) Eval(ctx context.Context, row schema.Row, binds map[string]*que
 		return nil, err
 	}
 
-	if re.MatchString(lhs) {
-		return True, nil
-	}
-	return False, nil
+	return NewBool(re.MatchString(lhs)), nil
 }
 
-func (p *Regexp) String() string {
-	return fmt.Sprintf("Regexp(%s, %s)", p.Left.String(), p.Right.String())
+func (e *Regexp) String() string {
+	return fmt.Sprintf("Regexp(%s, %s)", e.Left.String(), e.Right.String())
 }

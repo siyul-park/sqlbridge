@@ -17,12 +17,12 @@ type Like struct {
 
 var _ Expr = (*Like)(nil)
 
-func (p *Like) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
-	left, err := p.Left.Eval(ctx, row, binds)
+func (e *Like) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
+	left, err := e.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
-	right, err := p.Right.Eval(ctx, row, binds)
+	right, err := e.Right.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
@@ -45,12 +45,9 @@ func (p *Like) Eval(ctx context.Context, row schema.Row, binds map[string]*query
 		return nil, err
 	}
 
-	if re.MatchString(lhs) {
-		return True, nil
-	}
-	return False, nil
+	return NewBool(re.MatchString(lhs)), nil
 }
 
-func (p *Like) String() string {
-	return fmt.Sprintf("Like(%s, %s)", p.Left.String(), p.Right.String())
+func (e *Like) String() string {
+	return fmt.Sprintf("Like(%s, %s)", e.Left.String(), e.Right.String())
 }

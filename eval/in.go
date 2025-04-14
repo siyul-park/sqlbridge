@@ -15,12 +15,12 @@ type In struct {
 
 var _ Expr = (*In)(nil)
 
-func (p *In) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
-	left, err := p.Left.Eval(ctx, row, binds)
+func (e *In) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
+	left, err := e.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
-	right, err := p.Right.Eval(ctx, row, binds)
+	right, err := e.Right.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
@@ -43,6 +43,6 @@ func (p *In) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb
 	return False, nil
 }
 
-func (p *In) String() string {
-	return fmt.Sprintf("In(%s, %s)", p.Left.String(), p.Right.String())
+func (e *In) String() string {
+	return fmt.Sprintf("In(%s, %s)", e.Left.String(), e.Right.String())
 }

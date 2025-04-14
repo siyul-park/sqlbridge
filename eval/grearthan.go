@@ -15,12 +15,12 @@ type GreaterThan struct {
 
 var _ Expr = (*GreaterThan)(nil)
 
-func (p *GreaterThan) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
-	left, err := p.Left.Eval(ctx, row, binds)
+func (e *GreaterThan) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
+	left, err := e.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
-	right, err := p.Right.Eval(ctx, row, binds)
+	right, err := e.Right.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
@@ -32,6 +32,6 @@ func (p *GreaterThan) Eval(ctx context.Context, row schema.Row, binds map[string
 	return NewBool(cmp > 0), nil
 }
 
-func (p *GreaterThan) String() string {
-	return fmt.Sprintf("GreaterThan(%s, %s)", p.Left.String(), p.Right.String())
+func (e *GreaterThan) String() string {
+	return fmt.Sprintf("GreaterThan(%s, %s)", e.Left.String(), e.Right.String())
 }

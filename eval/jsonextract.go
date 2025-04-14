@@ -19,13 +19,12 @@ type JSONExtract struct {
 
 var _ Expr = (*JSONExtract)(nil)
 
-func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
-	left, err := p.Left.Eval(ctx, row, binds)
+func (e *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
+	left, err := e.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
-
-	right, err := p.Right.Eval(ctx, row, binds)
+	right, err := e.Right.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +33,6 @@ func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string
 	if err != nil {
 		return nil, err
 	}
-
 	rhs, err := ToString(right)
 	if err != nil {
 		return nil, err
@@ -101,6 +99,6 @@ func (p *JSONExtract) Eval(ctx context.Context, row schema.Row, binds map[string
 	return NewValue(curr.Interface()), nil
 }
 
-func (p *JSONExtract) String() string {
-	return fmt.Sprintf("JSONExtract(%s, %s)", p.Left.String(), p.Right.String())
+func (e *JSONExtract) String() string {
+	return fmt.Sprintf("JSONExtract(%s, %s)", e.Left.String(), e.Right.String())
 }

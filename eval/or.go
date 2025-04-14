@@ -15,8 +15,8 @@ type Or struct {
 
 var _ Expr = (*Or)(nil)
 
-func (p *Or) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
-	left, err := p.Left.Eval(ctx, row, binds)
+func (e *Or) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
+	left, err := e.Left.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
@@ -24,13 +24,13 @@ func (p *Or) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb
 		return True, nil
 	}
 
-	right, err := p.Right.Eval(ctx, row, binds)
+	right, err := e.Right.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
 	return NewBool(ToBool(right)), nil
 }
 
-func (p *Or) String() string {
-	return fmt.Sprintf("Or(%s, %s)", p.Left.String(), p.Right.String())
+func (e *Or) String() string {
+	return fmt.Sprintf("Or(%s, %s)", e.Left.String(), e.Right.String())
 }

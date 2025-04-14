@@ -15,15 +15,15 @@ type Column struct {
 
 var _ Expr = (*Column)(nil)
 
-func (p *Column) Eval(_ context.Context, row schema.Row, _ map[string]*querypb.BindVariable) (Value, error) {
+func (e *Column) Eval(_ context.Context, row schema.Row, _ map[string]*querypb.BindVariable) (Value, error) {
 	for i, col := range row.Columns {
-		if col.Equal(p.Value) {
+		if col.Equal(e.Value) {
 			return FromSQL(row.Values[i])
 		}
 	}
 	return nil, nil
 }
 
-func (p *Column) String() string {
-	return fmt.Sprintf("Column(%s)", sqlparser.String(p.Value))
+func (e *Column) String() string {
+	return fmt.Sprintf("Column(%s)", sqlparser.String(e.Value))
 }
