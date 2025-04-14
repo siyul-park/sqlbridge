@@ -19,9 +19,9 @@ type InMemoryCursor struct {
 var _ Cursor = (*InMemoryCursor)(nil)
 
 func ReadAll(cursor Cursor) ([]Row, error) {
-	var records []Row
+	var rows []Row
 	for {
-		record, err := cursor.Next()
+		row, err := cursor.Next()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				break
@@ -29,17 +29,17 @@ func ReadAll(cursor Cursor) ([]Row, error) {
 			_ = cursor.Close()
 			return nil, err
 		}
-		records = append(records, record)
+		rows = append(rows, row)
 	}
 	_ = cursor.Close()
-	return records, nil
+	return rows, nil
 }
 
-func NewInMemoryCursor(records []Row) *InMemoryCursor {
-	if len(records) == 0 {
-		records = nil
+func NewInMemoryCursor(rows []Row) *InMemoryCursor {
+	if len(rows) == 0 {
+		rows = nil
 	}
-	return &InMemoryCursor{rows: records}
+	return &InMemoryCursor{rows: rows}
 }
 
 func (c *InMemoryCursor) Next() (Row, error) {

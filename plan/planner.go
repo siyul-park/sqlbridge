@@ -202,6 +202,20 @@ func (p *Planner) planWhere(input Plan, node *sqlparser.Where) (Plan, error) {
 }
 
 func (p *Planner) planGroupBy(input Plan, node sqlparser.GroupBy) (Plan, error) {
+	if len(node) > 0 {
+		exprs := make([]eval.Expr, 0, len(node))
+		for _, expr := range node {
+			e, err := p.planExpr(expr)
+			if err != nil {
+				return nil, err
+			}
+			exprs = append(exprs, e)
+		}
+		input = &Group{
+			Input: input,
+			Exprs: exprs,
+		}
+	}
 	return input, nil
 }
 

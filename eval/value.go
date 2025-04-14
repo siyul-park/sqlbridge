@@ -49,6 +49,10 @@ var (
 )
 
 func Compare(lhs, rhs Value) (int, error) {
+	if lhs == nil && rhs == nil {
+		return 0, nil
+	}
+
 	lhs, rhs, err := Promote(lhs, rhs)
 	if err != nil {
 		return 0, err

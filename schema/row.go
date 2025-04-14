@@ -11,6 +11,15 @@ type Row struct {
 	Children []Row
 }
 
+func (r *Row) Get(name *sqlparser.ColName) (sqltypes.Value, bool) {
+	for i, col := range r.Columns {
+		if col.Equal(name) {
+			return r.Values[i], true
+		}
+	}
+	return sqltypes.NULL, false
+}
+
 func (r *Row) IsEmpty() bool {
 	return len(r.Columns) == 0 && len(r.Values) == 0 && len(r.Children) == 0
 }
