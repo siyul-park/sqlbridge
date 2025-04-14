@@ -76,6 +76,7 @@ func (b *Builder) Build(expr sqlparser.Expr) (Expr, error) {
 	case *sqlparser.GroupConcatExpr:
 		return b.buildGroupConcatExpr(expr)
 	case *sqlparser.Default:
+		return b.buildDefault(expr)
 	}
 	return nil, driver.ErrSkip
 }
@@ -524,4 +525,8 @@ func (b *Builder) buildGroupConcatExpr(expr *sqlparser.GroupConcatExpr) (Expr, e
 		Input:     input,
 		Separator: expr.Separator,
 	}, nil
+}
+
+func (b *Builder) buildDefault(_ *sqlparser.Default) (Expr, error) {
+	return &Literal{Value: sqltypes.NULL}, nil
 }
