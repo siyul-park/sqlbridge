@@ -3,9 +3,10 @@ package eval
 import (
 	"context"
 	"fmt"
+	"math"
+
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser/dependency/querypb"
-	"math"
 )
 
 type Modulo struct {
