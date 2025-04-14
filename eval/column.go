@@ -25,5 +25,5 @@ func (e *Column) Eval(_ context.Context, row schema.Row, _ map[string]*querypb.B
 }
 
 func (e *Column) String() string {
-	return fmt.Sprintf("Column(%s)", sqlparser.String(e.Value))
+	return fmt.Sprintf("Columns(%s)", sqlparser.String(e.Value))
 }

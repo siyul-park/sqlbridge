@@ -72,6 +72,7 @@ func (b *Builder) Build(expr sqlparser.Expr) (Expr, error) {
 		return b.buildSubstrExpr(expr)
 	case *sqlparser.ConvertUsingExpr:
 	case *sqlparser.MatchExpr:
+		return b.buildMatchExpr(expr)
 	case *sqlparser.GroupConcatExpr:
 	case *sqlparser.Default:
 	}
@@ -365,17 +366,17 @@ func (b *Builder) buildIntervalExpr(expr *sqlparser.IntervalExpr) (Expr, error) 
 }
 
 func (b *Builder) buildFuncExpr(expr *sqlparser.FuncExpr) (Expr, error) {
-	args := make([]FuncArg, 0, len(expr.Exprs))
+	exprs := make([]Expr, 0, len(expr.Exprs))
 	for _, expr := range expr.Exprs {
 		switch e := expr.(type) {
 		case *sqlparser.StarExpr:
-			args = append(args, &StartArg{Table: e.TableName})
+			exprs = append(exprs, &Columns{Table: e.TableName})
 		case *sqlparser.AliasedExpr:
 			expr, err := b.Build(e.Expr)
 			if err != nil {
 				return nil, err
 			}
-			args = append(args, &AliasArg{Expr: expr, As: e.As})
+			exprs = append(exprs, expr)
 		default:
 			return nil, driver.ErrSkip
 		}
@@ -386,7 +387,7 @@ func (b *Builder) buildFuncExpr(expr *sqlparser.FuncExpr) (Expr, error) {
 		Name:       expr.Name,
 		Distinct:   expr.Distinct,
 		Aggregate:  expr.IsAggregate(),
-		Args:       args,
+		Exprs:      exprs,
 	}, nil
 }
 
@@ -431,25 +432,51 @@ func (b *Builder) buildConvertExpr(expr *sqlparser.ConvertExpr) (Expr, error) {
 }
 
 func (b *Builder) buildSubstrExpr(expr *sqlparser.SubstrExpr) (Expr, error) {
-	args := []FuncArg{&AliasArg{Expr: &Column{Value: expr.Name}}}
+	exprs := []Expr{&Column{Value: expr.Name}}
 	if expr.From != nil {
 		from, err := b.Build(expr.From)
 		if err != nil {
 			return nil, err
 		}
-		args = append(args, &AliasArg{Expr: from})
+		exprs = append(exprs, from)
 	}
 	if expr.To != nil {
 		to, err := b.Build(expr.To)
 		if err != nil {
 			return nil, err
 		}
-		args = append(args, &AliasArg{Expr: to})
+		exprs = append(exprs, to)
 	}
 	return &Func{
 		Dispatcher: b.dispatcher,
 		Name:       sqlparser.NewColIdent("substr"),
-		Args:       args,
+		Exprs:      exprs,
 	}, nil
+}
 
+func (b *Builder) buildMatchExpr(expr *sqlparser.MatchExpr) (Expr, error) {
+	columns := make([]Expr, 0, len(expr.Columns))
+	for _, expr := range expr.Columns {
+		switch e := expr.(type) {
+		case *sqlparser.StarExpr:
+			columns = append(columns, &Columns{Table: e.TableName})
+		case *sqlparser.AliasedExpr:
+			expr, err := b.Build(e.Expr)
+			if err != nil {
+				return nil, err
+			}
+			columns = append(columns, expr)
+		default:
+			return nil, driver.ErrSkip
+		}
+	}
+	e, err := b.Build(expr.Expr)
+	if err != nil {
+		return nil, err
+	}
+	return &Match{
+		Columns: columns,
+		Expr:    e,
+		Option:  expr.Option,
+	}, nil
 }
