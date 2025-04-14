@@ -60,7 +60,9 @@ func (b *Builder) Build(expr sqlparser.Expr) (Expr, error) {
 	case *sqlparser.CaseExpr:
 		return b.buildCaseExpr(expr)
 	case *sqlparser.ValuesFuncExpr:
+		return b.buildValuesFuncExpr(expr)
 	case *sqlparser.ConvertExpr:
+		return b.buildConvertExpr(expr)
 	case *sqlparser.SubstrExpr:
 	case *sqlparser.ConvertUsingExpr:
 	case *sqlparser.MatchExpr:
@@ -382,4 +384,16 @@ func (b *Builder) buildCaseExpr(expr *sqlparser.CaseExpr) (Expr, error) {
 		}
 	}
 	return right, nil
+}
+
+func (b *Builder) buildValuesFuncExpr(expr *sqlparser.ValuesFuncExpr) (Expr, error) {
+	return &Column{Value: expr.Name}, nil
+}
+
+func (b *Builder) buildConvertExpr(expr *sqlparser.ConvertExpr) (Expr, error) {
+	input, err := b.Build(expr.Expr)
+	if err != nil {
+		return nil, err
+	}
+	return &Convert{Input: input, Type: expr.Type}, nil
 }
