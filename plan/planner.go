@@ -4,10 +4,11 @@ import (
 	"database/sql/driver"
 	"encoding/hex"
 	"fmt"
-	"github.com/xwb1989/sqlparser/dependency/querypb"
-	"github.com/xwb1989/sqlparser/dependency/sqltypes"
 	"math/big"
 	"strconv"
+
+	"github.com/xwb1989/sqlparser/dependency/querypb"
+	"github.com/xwb1989/sqlparser/dependency/sqltypes"
 
 	"github.com/siyul-park/sqlbridge/eval"
 
@@ -275,19 +276,22 @@ func (p *Planner) planOrderBy(input Plan, node sqlparser.OrderBy) (Plan, error) 
 }
 
 func (p *Planner) planLimit(input Plan, node *sqlparser.Limit) (Plan, error) {
-	offset, err := p.planExpr(node.Offset)
-	if err != nil {
-		return nil, err
+	if node != nil {
+		offset, err := p.planExpr(node.Offset)
+		if err != nil {
+			return nil, err
+		}
+		count, err := p.planExpr(node.Rowcount)
+		if err != nil {
+			return nil, err
+		}
+		input = &Limit{
+			Input:  input,
+			Offset: offset,
+			Count:  count,
+		}
 	}
-	count, err := p.planExpr(node.Rowcount)
-	if err != nil {
-		return nil, err
-	}
-	return &Limit{
-		Input:  input,
-		Offset: offset,
-		Count:  count,
-	}, nil
+	return input, nil
 }
 
 func (p *Planner) planExpr(expr sqlparser.Expr) (eval.Expr, error) {
@@ -524,7 +528,7 @@ func (p *Planner) planSQLVal(expr *sqlparser.SQLVal) (eval.Expr, error) {
 			return &eval.Literal{Value: val}, nil
 		}
 	case sqlparser.ValArg:
-		return &eval.Bind{Value: ":" + string(expr.Val)}, nil
+		return &eval.Bind{Value: string(expr.Val)}, nil
 	case sqlparser.BitVal:
 		if data, ok := new(big.Int).SetString(string(expr.Val), 2); !ok {
 			return nil, fmt.Errorf("invalid bit string '%s'", expr.Val)
@@ -566,7 +570,7 @@ func (p *Planner) planValTuple(expr sqlparser.ValTuple) (eval.Expr, error) {
 }
 
 func (p *Planner) planListArg(expr sqlparser.ListArg) (eval.Expr, error) {
-	return &eval.Bind{Value: "::" + string(expr)}, nil
+	return &eval.Bind{Value: string(expr)}, nil
 }
 
 func (p *Planner) planBinaryExpr(expr *sqlparser.BinaryExpr) (eval.Expr, error) {

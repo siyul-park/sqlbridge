@@ -3,12 +3,13 @@ package plan
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/siyul-park/sqlbridge/eval"
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser"
 	"github.com/xwb1989/sqlparser/dependency/querypb"
 	"github.com/xwb1989/sqlparser/dependency/sqltypes"
-	"strings"
 )
 
 type Group struct {

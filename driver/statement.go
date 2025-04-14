@@ -6,13 +6,15 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/siyul-park/sqlbridge/plan"
 	"github.com/siyul-park/sqlbridge/schema"
-	"github.com/siyul-park/sqlbridge/task"
 	"github.com/xwb1989/sqlparser"
+	"github.com/xwb1989/sqlparser/dependency/querypb"
+	"github.com/xwb1989/sqlparser/dependency/sqltypes"
 )
 
 type statement struct {
-	task  task.Task
+	plan  plan.Plan
 	binds map[string]struct{}
 }
 
@@ -33,7 +35,12 @@ func (s *statement) Query(args []driver.Value) (driver.Rows, error) {
 }
 
 func (s *statement) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
-	cursor, err := s.task.Run(ctx, args...)
+	binds, err := s.bind(args)
+	if err != nil {
+		return nil, err
+	}
+
+	cursor, err := s.plan.Run(ctx, binds)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +54,12 @@ func (s *statement) ExecContext(ctx context.Context, args []driver.NamedValue) (
 }
 
 func (s *statement) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
-	cursor, err := s.task.Run(ctx, args...)
+	binds, err := s.bind(args)
+	if err != nil {
+		return nil, err
+	}
+
+	cursor, err := s.plan.Run(ctx, binds)
 	if err != nil {
 		return nil, err
 	}
@@ -91,4 +103,12 @@ func (s *statement) named(args []driver.Value) []driver.NamedValue {
 		value = append(value, driver.NamedValue{Name: fmt.Sprintf("v%d", i), Value: arg})
 	}
 	return value
+}
+
+func (s *statement) bind(args []driver.NamedValue) (map[string]*querypb.BindVariable, error) {
+	binds := make(map[string]any, len(args))
+	for _, arg := range args {
+		binds[arg.Name] = arg.Value
+	}
+	return sqltypes.BuildBindVariables(binds)
 }

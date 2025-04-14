@@ -5,7 +5,7 @@ import (
 	"math"
 )
 
-func Builtin() Option {
+func WithBuiltIn() Option {
 	return func(d *Dispatcher) {
 		d.fns["substr"] = NewSubstr()
 		d.fns["group_concat"] = NewGroupConcat()

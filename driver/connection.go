@@ -6,15 +6,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/xwb1989/sqlparser"
-
 	"github.com/siyul-park/sqlbridge/plan"
-	"github.com/siyul-park/sqlbridge/task"
+	"github.com/xwb1989/sqlparser"
 )
 
 type connection struct {
 	planner *plan.Planner
-	builder *task.Builder
 }
 
 var _ driver.Conn = (*connection)(nil)
@@ -87,18 +84,13 @@ func (c *connection) PrepareContext(ctx context.Context, query string) (driver.S
 			return nil, err
 		}
 
-		binds := sqlparser.GetBindvars(stmt)
-
 		p, err := c.planner.Plan(stmt)
 		if err != nil {
 			return nil, err
 		}
 
-		t, err := c.builder.Build(p)
-		if err != nil {
-			return nil, err
-		}
-		return &statement{task: t, binds: binds}, nil
+		binds := sqlparser.GetBindvars(stmt)
+		return &statement{plan: p, binds: binds}, nil
 	}
 }
 

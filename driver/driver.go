@@ -3,17 +3,14 @@ package driver
 import (
 	"database/sql/driver"
 
-	"github.com/siyul-park/sqlbridge/vm"
-
+	"github.com/siyul-park/sqlbridge/eval"
 	"github.com/siyul-park/sqlbridge/plan"
 	"github.com/siyul-park/sqlbridge/schema"
-	"github.com/siyul-park/sqlbridge/task"
 )
 
 type Driver struct {
-	registry schema.Registry
-	planner  *plan.Planner
-	vm       *vm.VM
+	registry   schema.Registry
+	dispatcher *eval.Dispatcher
 }
 
 type Option func(*Driver)
@@ -21,22 +18,18 @@ type Option func(*Driver)
 var _ driver.Driver = (*Driver)(nil)
 var _ driver.DriverContext = (*Driver)(nil)
 
-func WithVM(vm *vm.VM) Option {
-	return func(d *Driver) { d.vm = vm }
-}
-
-func WithPlanner(planner *plan.Planner) Option {
-	return func(d *Driver) { d.planner = planner }
-}
-
 func WithRegistry(registry schema.Registry) Option {
 	return func(d *Driver) { d.registry = registry }
 }
 
+func WithDispatcher(dispatcher *eval.Dispatcher) Option {
+	return func(d *Driver) { d.dispatcher = dispatcher }
+}
+
 func New(opts ...Option) *Driver {
 	d := &Driver{
-		vm:       vm.New(),
-		registry: schema.NewInMemoryRegistry(nil),
+		registry:   schema.NewInMemoryRegistry(nil),
+		dispatcher: eval.NewDispatcher(eval.WithBuiltIn()),
 	}
 	for _, opt := range opts {
 		opt(d)
@@ -49,10 +42,7 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &connection{
-		planner: d.planner,
-		builder: task.NewBuilder(task.WithVM(d.vm), task.WithCatalog(catalog)),
-	}, nil
+	return &connection{planner: plan.NewPlanner(catalog, d.dispatcher)}, nil
 }
 
 func (d *Driver) OpenConnector(name string) (driver.Connector, error) {
