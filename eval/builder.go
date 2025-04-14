@@ -505,15 +505,15 @@ func (b *Builder) buildGroupConcatExpr(expr *sqlparser.GroupConcatExpr) (Expr, e
 
 	input := Expr(&Values{Exprs: exprs})
 
-	for _, order := range expr.OrderBy {
-		right, err := b.Build(order.Expr)
+	for i := len(expr.OrderBy) - 1; i >= 0; i-- {
+		right, err := b.Build(expr.OrderBy[i].Expr)
 		if err != nil {
 			return nil, err
 		}
 		input = &Order{
 			Left:      input,
 			Right:     right,
-			Direction: order.Direction,
+			Direction: expr.OrderBy[i].Direction,
 		}
 	}
 

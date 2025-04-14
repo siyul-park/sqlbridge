@@ -239,7 +239,19 @@ func (p *Planner) planSelectExprs(input Plan, node sqlparser.SelectExprs) (Plan,
 }
 
 func (p *Planner) planOrderBy(input Plan, node sqlparser.OrderBy) (Plan, error) {
-	return input, nil
+	left := input
+	for i := len(node) - 1; i >= 0; i-- {
+		expr, err := p.builder.Build(node[i].Expr)
+		if err != nil {
+			return nil, err
+		}
+		left = &Order{
+			Input:     left,
+			Expr:      expr,
+			Direction: node[i].Direction,
+		}
+	}
+	return left, nil
 }
 
 func (p *Planner) planLimit(input Plan, node *sqlparser.Limit) (Plan, error) {

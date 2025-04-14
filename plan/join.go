@@ -31,11 +31,11 @@ func (p *Join) Run(ctx context.Context, binds map[string]*querypb.BindVariable) 
 		return nil, err
 	}
 
-	lrows, err := schema.ReadAll(left)
+	lhs, err := schema.ReadAll(left)
 	if err != nil {
 		return nil, err
 	}
-	rrows, err := schema.ReadAll(right)
+	rhs, err := schema.ReadAll(right)
 	if err != nil {
 		return nil, err
 	}
@@ -43,11 +43,11 @@ func (p *Join) Run(ctx context.Context, binds map[string]*querypb.BindVariable) 
 	var joins []schema.Row
 	switch p.Join {
 	case sqlparser.JoinStr:
-		for _, lrow := range lrows {
-			for _, rrow := range rrows {
+		for _, l := range lhs {
+			for _, r := range rhs {
 				join := schema.Row{
-					Columns: append(lrow.Columns, rrow.Columns...),
-					Values:  append(lrow.Values, rrow.Values...),
+					Columns: append(l.Columns, r.Columns...),
+					Values:  append(l.Values, r.Values...),
 				}
 
 				if p.On != nil {
@@ -62,16 +62,16 @@ func (p *Join) Run(ctx context.Context, binds map[string]*querypb.BindVariable) 
 
 				ok := true
 				for _, using := range p.Using {
-					lval, err := using.Eval(ctx, lrow, binds)
+					lv, err := using.Eval(ctx, l, binds)
 					if err != nil {
 						return nil, err
 					}
-					rval, err := using.Eval(ctx, rrow, binds)
+					rv, err := using.Eval(ctx, r, binds)
 					if err != nil {
 						return nil, err
 					}
 
-					if cmp, err := eval.Compare(lval, rval); err != nil {
+					if cmp, err := eval.Compare(lv, rv); err != nil {
 						return nil, err
 					} else if cmp == 0 {
 						ok = false
