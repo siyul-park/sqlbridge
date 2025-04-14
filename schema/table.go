@@ -9,15 +9,15 @@ type Table interface {
 }
 
 type InMemoryTable struct {
-	records []Record
+	rows []Row
 }
 
 var _ Table = (*InMemoryTable)(nil)
 
-func NewInMemoryTable(records []Record) *InMemoryTable {
-	return &InMemoryTable{records: records}
+func NewInMemoryTable(rows []Row) *InMemoryTable {
+	return &InMemoryTable{rows: rows}
 }
 
 func (t *InMemoryTable) Scan(_ context.Context) (Cursor, error) {
-	return NewInMemoryCursor(t.records), nil
+	return NewInMemoryCursor(t.rows), nil
 }

@@ -7,21 +7,21 @@ import (
 )
 
 type Cursor interface {
-	Next() (Record, error)
+	Next() (Row, error)
 	Close() error
 }
 
 type InMemoryCursor struct {
-	records []Record
-	offset  int
+	rows   []Row
+	offset int
 }
 
 var _ Cursor = (*InMemoryCursor)(nil)
 
-func ReadAll(cursor Cursor) ([]Record, error) {
-	var records []Record
+func ReadAll(cursor Cursor) ([]Row, error) {
+	var rows []Row
 	for {
-		record, err := cursor.Next()
+		row, err := cursor.Next()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				break
@@ -29,57 +29,57 @@ func ReadAll(cursor Cursor) ([]Record, error) {
 			_ = cursor.Close()
 			return nil, err
 		}
-		records = append(records, record)
+		rows = append(rows, row)
 	}
 	_ = cursor.Close()
-	return records, nil
+	return rows, nil
 }
 
-func NewInMemoryCursor(records []Record) *InMemoryCursor {
-	if len(records) == 0 {
-		records = nil
+func NewInMemoryCursor(rows []Row) *InMemoryCursor {
+	if len(rows) == 0 {
+		rows = nil
 	}
-	return &InMemoryCursor{records: records}
+	return &InMemoryCursor{rows: rows}
 }
 
-func (c *InMemoryCursor) Next() (Record, error) {
-	if c.offset >= len(c.records) {
-		return Record{}, io.EOF
+func (c *InMemoryCursor) Next() (Row, error) {
+	if c.offset >= len(c.rows) {
+		return Row{}, io.EOF
 	}
-	record := c.records[c.offset]
+	record := c.rows[c.offset]
 	c.offset++
 	return record, nil
 }
 
 func (c *InMemoryCursor) Close() error {
-	c.offset = len(c.records)
+	c.offset = len(c.rows)
 	return nil
 }
 
 type MappedCursor struct {
 	cursor    Cursor
-	transform func(Record) (Record, error)
+	transform func(Row) (Row, error)
 	close     sync.Once
 }
 
 var _ Cursor = (*MappedCursor)(nil)
 
-func NewMappedCursor(cursor Cursor, transform func(Record) (Record, error)) *MappedCursor {
+func NewMappedCursor(cursor Cursor, transform func(Row) (Row, error)) *MappedCursor {
 	return &MappedCursor{cursor: cursor, transform: transform}
 }
 
-func (c *MappedCursor) Next() (Record, error) {
+func (c *MappedCursor) Next() (Row, error) {
 	for {
 		record, err := c.cursor.Next()
 		if err != nil {
-			return Record{}, err
+			return Row{}, err
 		}
 		record, err = c.transform(record)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				_ = c.Close()
 			}
-			return Record{}, err
+			return Row{}, err
 		}
 		if !record.IsEmpty() {
 			return record, nil

@@ -1,4 +1,4 @@
-package plan
+package eval
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"github.com/xwb1989/sqlparser/dependency/querypb"
 )
 
-type Plan interface {
-	Run(ctx context.Context, binds map[string]*querypb.BindVariable) (schema.Cursor, error)
+type Expr interface {
+	Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error)
 	String() string
 }
