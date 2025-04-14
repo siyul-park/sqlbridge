@@ -33,7 +33,6 @@ func TestStatement_NumInput(t *testing.T) {
 
 	input := stmt.NumInput()
 	require.Equal(t, 1, input)
-
 	require.NoError(t, stmt.Close())
 }
 

@@ -566,7 +566,7 @@ func (p *Planner) planValTuple(expr sqlparser.ValTuple) (eval.Expr, error) {
 		}
 		exprs = append(exprs, elem)
 	}
-	return &eval.Values{Exprs: exprs}, nil
+	return &eval.Paren{Exprs: exprs}, nil
 }
 
 func (p *Planner) planListArg(expr sqlparser.ListArg) (eval.Expr, error) {
@@ -657,8 +657,7 @@ func (p *Planner) planFuncExpr(expr *sqlparser.FuncExpr) (eval.Expr, error) {
 			return nil, driver.ErrSkip
 		}
 	}
-
-	input := eval.Expr(&eval.Values{Exprs: exprs})
+	input := eval.Expr(&eval.Paren{Exprs: exprs})
 	if expr.Distinct {
 		input = &eval.Distinct{Input: input}
 	}
@@ -730,7 +729,7 @@ func (p *Planner) planSubstrExpr(expr *sqlparser.SubstrExpr) (eval.Expr, error) 
 	return &eval.Func{
 		Dispatcher: p.dispatcher,
 		Name:       sqlparser.NewColIdent("substr"),
-		Input:      &eval.Values{Exprs: exprs},
+		Input:      &eval.Paren{Exprs: exprs},
 	}, nil
 }
 
@@ -777,7 +776,7 @@ func (p *Planner) planGroupConcatExpr(expr *sqlparser.GroupConcatExpr) (eval.Exp
 		}
 	}
 
-	input := eval.Expr(&eval.Values{Exprs: exprs})
+	input := eval.Expr(&eval.Paren{Exprs: exprs})
 
 	for i := len(expr.OrderBy) - 1; i >= 0; i-- {
 		right, err := p.planExpr(expr.OrderBy[i].Expr)

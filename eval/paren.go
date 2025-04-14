@@ -9,13 +9,13 @@ import (
 	"github.com/xwb1989/sqlparser/dependency/querypb"
 )
 
-type Values struct {
+type Paren struct {
 	Exprs []Expr
 }
 
-var _ Expr = (*Values)(nil)
+var _ Expr = (*Paren)(nil)
 
-func (v *Values) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
+func (v *Paren) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
 	var vals []Value
 	for _, elem := range v.Exprs {
 		val, err := elem.Eval(ctx, row, binds)
@@ -35,10 +35,10 @@ func (v *Values) Eval(ctx context.Context, row schema.Row, binds map[string]*que
 	return NewTuple(vals), nil
 }
 
-func (v *Values) String() string {
+func (v *Paren) String() string {
 	parts := make([]string, len(v.Exprs))
 	for i, e := range v.Exprs {
 		parts[i] = e.String()
 	}
-	return fmt.Sprintf("Values(%s)", strings.Join(parts, ", "))
+	return fmt.Sprintf("Paren(%s)", strings.Join(parts, ", "))
 }
