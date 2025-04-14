@@ -10,13 +10,13 @@ import (
 )
 
 type Bind struct {
-	Name string
+	Value string
 }
 
 var _ Expr = (*Bind)(nil)
 
 func (e *Bind) Eval(_ context.Context, _ schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
-	val, ok := binds[e.Name]
+	val, ok := binds[e.Value]
 	if !ok {
 		return nil, nil
 	}
@@ -37,5 +37,5 @@ func (e *Bind) Eval(_ context.Context, _ schema.Row, binds map[string]*querypb.B
 }
 
 func (e *Bind) String() string {
-	return fmt.Sprintf("Bind(%s)", e.Name)
+	return fmt.Sprintf("Bind(%s)", e.Value)
 }

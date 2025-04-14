@@ -39,7 +39,6 @@ func (e *Distinct) Eval(ctx context.Context, row schema.Row, binds map[string]*q
 		vals = append(vals, val)
 	}
 	return NewTuple(vals), nil
-
 }
 
 func (e *Distinct) String() string {

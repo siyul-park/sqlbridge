@@ -18,11 +18,19 @@ var _ Expr = (*Values)(nil)
 func (v *Values) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
 	var vals []Value
 	for _, elem := range v.Exprs {
-		value, err := elem.Eval(ctx, row, binds)
+		val, err := elem.Eval(ctx, row, binds)
 		if err != nil {
 			return nil, err
 		}
-		vals = append(vals, value)
+		switch val := val.(type) {
+		case *Tuple:
+			vals = append(vals, val.Values()...)
+		default:
+			vals = append(vals, val)
+		}
+	}
+	if len(vals) == 1 {
+		return vals[0], nil
 	}
 	return NewTuple(vals), nil
 }

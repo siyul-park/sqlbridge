@@ -9,7 +9,7 @@ import (
 )
 
 type Columns struct {
-	Table sqlparser.TableName
+	Value sqlparser.TableName
 }
 
 var _ Expr = (*Columns)(nil)
@@ -17,7 +17,7 @@ var _ Expr = (*Columns)(nil)
 func (e *Columns) Eval(_ context.Context, row schema.Row, _ map[string]*querypb.BindVariable) (Value, error) {
 	var vals []Value
 	for i, col := range row.Columns {
-		if !e.Table.IsEmpty() && col.Qualifier != e.Table {
+		if !e.Value.IsEmpty() && col.Qualifier != e.Value {
 			continue
 		}
 		val, err := FromSQL(row.Values[i])
@@ -30,5 +30,5 @@ func (e *Columns) Eval(_ context.Context, row schema.Row, _ map[string]*querypb.
 }
 
 func (e *Columns) String() string {
-	return fmt.Sprintf("Columns(%s)", e.Table.Name)
+	return fmt.Sprintf("Columns(%s)", e.Value.Name)
 }

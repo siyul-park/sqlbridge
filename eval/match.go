@@ -10,9 +10,8 @@ import (
 )
 
 type Match struct {
-	Columns []Expr
 	Input   Expr
-	Option  string
+	Columns []Expr
 }
 
 var _ Expr = (*Match)(nil)
@@ -64,5 +63,5 @@ func (e *Match) String() string {
 	for _, col := range e.Columns {
 		columns = append(columns, col.String())
 	}
-	return fmt.Sprintf("Match(%s, %s, %s)", strings.Join(columns, ", "), e.Input.String(), e.Option)
+	return fmt.Sprintf("Match(%s, %s)", strings.Join(columns, ", "), e.Input.String())
 }
