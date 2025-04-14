@@ -11,7 +11,7 @@ import (
 
 type Match struct {
 	Columns []Expr
-	Expr    Expr
+	Input   Expr
 	Option  string
 }
 
@@ -42,7 +42,7 @@ func (e *Match) Eval(ctx context.Context, row schema.Row, binds map[string]*quer
 		}
 	}
 
-	expr, err := e.Expr.Eval(ctx, row, binds)
+	expr, err := e.Input.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
@@ -64,5 +64,5 @@ func (e *Match) String() string {
 	for _, col := range e.Columns {
 		columns = append(columns, col.String())
 	}
-	return fmt.Sprintf("Match(%s, %s, %s)", strings.Join(columns, ", "), e.Expr.String(), e.Option)
+	return fmt.Sprintf("Match(%s, %s, %s)", strings.Join(columns, ", "), e.Input.String(), e.Option)
 }

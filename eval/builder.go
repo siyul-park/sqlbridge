@@ -381,13 +381,17 @@ func (b *Builder) buildFuncExpr(expr *sqlparser.FuncExpr) (Expr, error) {
 			return nil, driver.ErrSkip
 		}
 	}
+
+	input := Expr(&Values{Exprs: exprs})
+	if expr.Distinct {
+		input = &Distinct{Input: input}
+	}
 	return &Func{
 		Dispatcher: b.dispatcher,
 		Qualifier:  expr.Qualifier,
 		Name:       expr.Name,
-		Distinct:   expr.Distinct,
 		Aggregate:  expr.IsAggregate(),
-		Exprs:      exprs,
+		Input:      input,
 	}, nil
 }
 
@@ -450,7 +454,7 @@ func (b *Builder) buildSubstrExpr(expr *sqlparser.SubstrExpr) (Expr, error) {
 	return &Func{
 		Dispatcher: b.dispatcher,
 		Name:       sqlparser.NewColIdent("substr"),
-		Exprs:      exprs,
+		Input:      &Values{Exprs: exprs},
 	}, nil
 }
 
@@ -470,13 +474,13 @@ func (b *Builder) buildMatchExpr(expr *sqlparser.MatchExpr) (Expr, error) {
 			return nil, driver.ErrSkip
 		}
 	}
-	e, err := b.Build(expr.Expr)
+	input, err := b.Build(expr.Expr)
 	if err != nil {
 		return nil, err
 	}
 	return &Match{
 		Columns: columns,
-		Expr:    e,
+		Input:   input,
 		Option:  expr.Option,
 	}, nil
 }
