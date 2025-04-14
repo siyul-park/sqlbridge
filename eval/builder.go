@@ -58,6 +58,7 @@ func (b *Builder) Build(expr sqlparser.Expr) (Expr, error) {
 	case *sqlparser.CollateExpr:
 	case *sqlparser.FuncExpr:
 	case *sqlparser.CaseExpr:
+		return b.buildCaseExpr(expr)
 	case *sqlparser.ValuesFuncExpr:
 	case *sqlparser.ConvertExpr:
 	case *sqlparser.SubstrExpr:
@@ -353,4 +354,32 @@ func (b *Builder) buildIntervalExpr(expr *sqlparser.IntervalExpr) (Expr, error) 
 		return nil, err
 	}
 	return &Interval{Input: input, Unit: expr.Unit}, nil
+}
+
+func (b *Builder) buildCaseExpr(expr *sqlparser.CaseExpr) (Expr, error) {
+	when, err := b.Build(expr.Expr)
+	if err != nil {
+		return nil, err
+	}
+	right, err := b.Build(expr.Else)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := len(expr.Whens) - 1; i >= 0; i-- {
+		cond, err := b.Build(expr.Whens[i].Cond)
+		if err != nil {
+			return nil, err
+		}
+		then, err := b.Build(expr.Whens[i].Val)
+		if err != nil {
+			return nil, err
+		}
+		right = &If{
+			When: &Equal{Left: when, Right: cond},
+			Then: then,
+			Else: right,
+		}
+	}
+	return right, nil
 }
