@@ -54,6 +54,7 @@ func (b *Builder) Build(expr sqlparser.Expr) (Expr, error) {
 	case *sqlparser.UnaryExpr:
 		return b.buildUnaryExpr(expr)
 	case *sqlparser.IntervalExpr:
+		return b.buildIntervalExpr(expr)
 	case *sqlparser.CollateExpr:
 	case *sqlparser.FuncExpr:
 	case *sqlparser.CaseExpr:
@@ -336,7 +337,7 @@ func (b *Builder) buildUnaryExpr(expr *sqlparser.UnaryExpr) (Expr, error) {
 	case sqlparser.UMinusStr:
 		return &Multiply{Left: input, Right: &Literal{Value: sqltypes.NewInt64(-1)}}, nil
 	case sqlparser.TildaStr:
-		return &Not{Input: input}, nil // TODO: 새 연산으로 변경
+		return &BitNot{Input: input}, nil
 	case sqlparser.BangStr:
 		return &Not{Input: input}, nil
 	case sqlparser.BinaryStr, sqlparser.UBinaryStr:
@@ -344,4 +345,12 @@ func (b *Builder) buildUnaryExpr(expr *sqlparser.UnaryExpr) (Expr, error) {
 	default:
 		return nil, fmt.Errorf("unsupported unary operator %s", expr.Operator)
 	}
+}
+
+func (b *Builder) buildIntervalExpr(expr *sqlparser.IntervalExpr) (Expr, error) {
+	input, err := b.Build(expr.Expr)
+	if err != nil {
+		return nil, err
+	}
+	return &Interval{Input: input, Unit: expr.Unit}, nil
 }

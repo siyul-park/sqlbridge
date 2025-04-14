@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/xwb1989/sqlparser/dependency/querypb"
@@ -21,7 +22,11 @@ type Uint64 struct{ data uint64 }
 type Float64 struct{ data float64 }
 type String struct{ data string }
 type Bytes struct{ data []byte }
-type Time struct{ data time.Time }
+type DateTime struct{ data time.Time }
+type Duration struct {
+	amount int64
+	unit   string
+}
 type JSON struct{ data any }
 type Tuple struct{ data []Value }
 
@@ -36,7 +41,8 @@ var (
 	_ Value = (*Float64)(nil)
 	_ Value = (*String)(nil)
 	_ Value = (*Bytes)(nil)
-	_ Value = (*Time)(nil)
+	_ Value = (*DateTime)(nil)
+	_ Value = (*Duration)(nil)
 	_ Value = (*JSON)(nil)
 	_ Value = (*Tuple)(nil)
 )
@@ -103,10 +109,10 @@ func Compare(lhs, rhs Value) (int, error) {
 			return 1, nil
 		}
 		return 0, nil
-	case *Time:
-		r, ok := rhs.(*Time)
+	case *DateTime:
+		r, ok := rhs.(*DateTime)
 		if !ok {
-			return 0, fmt.Errorf("cannot compare Time with %T", rhs)
+			return 0, fmt.Errorf("cannot compare DateTime with %T", rhs)
 		}
 		if l.Time().Before(r.Time()) {
 			return -1, nil
@@ -310,7 +316,7 @@ func FromSQL(val sqltypes.Value) (Value, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &Time{data: t}, nil
+		return &DateTime{data: t}, nil
 
 	case sqltypes.Timestamp, sqltypes.Datetime:
 		layouts := []string{
@@ -323,7 +329,7 @@ func FromSQL(val sqltypes.Value) (Value, error) {
 		for _, layout := range layouts {
 			t, err = time.Parse(layout, val.String())
 			if err == nil {
-				return &Time{data: t}, nil
+				return &DateTime{data: t}, nil
 			}
 		}
 		return nil, fmt.Errorf("cannot parse datetime: %w", err)
@@ -333,14 +339,14 @@ func FromSQL(val sqltypes.Value) (Value, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &Time{data: t}, nil
+		return &DateTime{data: t}, nil
 
 	case sqltypes.Year:
 		t, err := time.Parse("2006", val.String())
 		if err != nil {
 			return nil, err
 		}
-		return &Time{data: t}, nil
+		return &DateTime{data: t}, nil
 
 	case sqltypes.TypeJSON:
 		var v any
@@ -369,7 +375,7 @@ func ToBool(val Value) bool {
 		return v.data != ""
 	case *Bytes:
 		return len(v.data) > 0
-	case *Time:
+	case *DateTime:
 		return !v.data.IsZero()
 	case *JSON:
 		return !reflect.ValueOf(v.data).IsZero()
@@ -392,7 +398,7 @@ func ToInt(val Value) (int64, error) {
 		return strconv.ParseInt(v.String(), 10, 64)
 	case *Bytes:
 		return strconv.ParseInt(string(v.Bytes()), 10, 64)
-	case *Time:
+	case *DateTime:
 		return v.data.Unix(), nil
 	case *JSON:
 		b, err := json.Marshal(v.Interface())
@@ -418,7 +424,7 @@ func ToUint(val Value) (uint64, error) {
 		return strconv.ParseUint(v.String(), 10, 64)
 	case *Bytes:
 		return strconv.ParseUint(string(v.Bytes()), 10, 64)
-	case *Time:
+	case *DateTime:
 		return uint64(v.data.Unix()), nil
 	case *JSON:
 		b, err := json.Marshal(v.Interface())
@@ -444,7 +450,7 @@ func ToFloat(val Value) (float64, error) {
 		return strconv.ParseFloat(v.String(), 64)
 	case *Bytes:
 		return strconv.ParseFloat(string(v.Bytes()), 64)
-	case *Time:
+	case *DateTime:
 		return float64(v.data.Unix()), nil
 	case *JSON:
 		b, err := json.Marshal(v.Interface())
@@ -470,8 +476,10 @@ func ToString(val Value) (string, error) {
 		return v.String(), nil
 	case *Bytes:
 		return string(v.Bytes()), nil
-	case *Time:
+	case *DateTime:
 		return v.Time().Format(time.RFC3339), nil
+	case *Duration:
+		return v.String(), nil
 	case *JSON:
 		b, err := json.Marshal(v.Interface())
 		if err != nil {
@@ -495,31 +503,14 @@ func ToBytes(val Value) ([]byte, error) {
 		return []byte(v.String()), nil
 	case *Bytes:
 		return v.Bytes(), nil
-	case *Time:
+	case *DateTime:
 		return []byte(v.Time().Format(time.RFC3339)), nil
+	case *Duration:
+		return []byte(v.String()), nil
 	case *JSON:
 		return json.Marshal(v.Interface())
 	default:
 		return nil, fmt.Errorf("cannot convert %T to bytes", val)
-	}
-}
-
-func ToDate(val Value) (time.Time, error) {
-	switch v := val.(type) {
-	case *Int64:
-		return time.Unix(v.Int(), 0), nil
-	case *Uint64:
-		return time.Unix(int64(v.Uint()), 0), nil
-	case *Float64:
-		return time.UnixMilli(int64(v.Float() * 1000)), nil
-	case *String:
-		return time.Parse(time.DateOnly, v.String())
-	case *Bytes:
-		return time.Parse(time.DateOnly, string(v.Bytes()))
-	case *Time:
-		return v.Time(), nil
-	default:
-		return time.Time{}, fmt.Errorf("cannot convert %T to TIME", val)
 	}
 }
 
@@ -535,7 +526,26 @@ func ToDateTime(val Value) (time.Time, error) {
 		return time.Parse(time.RFC3339, v.String())
 	case *Bytes:
 		return time.Parse(time.RFC3339, string(v.Bytes()))
-	case *Time:
+	case *DateTime:
+		return v.Time(), nil
+	default:
+		return time.Time{}, fmt.Errorf("cannot convert %T to TIME", val)
+	}
+}
+
+func ToDate(val Value) (time.Time, error) {
+	switch v := val.(type) {
+	case *Int64:
+		return time.Unix(v.Int(), 0), nil
+	case *Uint64:
+		return time.Unix(int64(v.Uint()), 0), nil
+	case *Float64:
+		return time.UnixMilli(int64(v.Float() * 1000)), nil
+	case *String:
+		return time.Parse(time.DateOnly, v.String())
+	case *Bytes:
+		return time.Parse(time.DateOnly, string(v.Bytes()))
+	case *DateTime:
 		return v.Time(), nil
 	default:
 		return time.Time{}, fmt.Errorf("cannot convert %T to TIME", val)
@@ -554,7 +564,7 @@ func ToTime(val Value) (time.Time, error) {
 		return time.Parse(time.TimeOnly, v.String())
 	case *Bytes:
 		return time.Parse(time.TimeOnly, string(v.Bytes()))
-	case *Time:
+	case *DateTime:
 		return v.Time(), nil
 	default:
 		return time.Time{}, fmt.Errorf("cannot convert %T to TIME", val)
@@ -573,7 +583,7 @@ func ToYear(val Value) (int64, error) {
 		return strconv.ParseInt(v.String(), 10, 64)
 	case *Bytes:
 		return strconv.ParseInt(string(v.Bytes()), 10, 64)
-	case *Time:
+	case *DateTime:
 		return int64(v.Time().Year()), nil
 	default:
 		return 0, fmt.Errorf("cannot convert %T to YEAR", val)
@@ -599,7 +609,7 @@ func NewValue(val any) Value {
 		}
 	case v.Kind() == reflect.Struct:
 		if t, ok := val.(time.Time); ok {
-			return NewTime(t)
+			return NewDateTime(t)
 		}
 	default:
 	}
@@ -613,14 +623,17 @@ func NewBool(b bool) *Int64 {
 	return False
 }
 
-func NewInt64(i int64) *Int64       { return &Int64{data: i} }
-func NewUint64(u uint64) *Uint64    { return &Uint64{data: u} }
-func NewFloat64(f float64) *Float64 { return &Float64{data: f} }
-func NewString(s string) *String    { return &String{data: s} }
-func NewBytes(b []byte) *Bytes      { return &Bytes{data: b} }
-func NewTime(t time.Time) *Time     { return &Time{data: t} }
-func NewJSON(j any) *JSON           { return &JSON{data: j} }
-func NewTuple(vals []Value) *Tuple  { return &Tuple{data: vals} }
+func NewInt64(i int64) *Int64           { return &Int64{data: i} }
+func NewUint64(u uint64) *Uint64        { return &Uint64{data: u} }
+func NewFloat64(f float64) *Float64     { return &Float64{data: f} }
+func NewString(s string) *String        { return &String{data: s} }
+func NewBytes(b []byte) *Bytes          { return &Bytes{data: b} }
+func NewDateTime(t time.Time) *DateTime { return &DateTime{data: t} }
+func NewDuration(amount int64, unit string) *Duration {
+	return &Duration{amount: amount, unit: strings.ToLower(unit)}
+}
+func NewJSON(j any) *JSON          { return &JSON{data: j} }
+func NewTuple(vals []Value) *Tuple { return &Tuple{data: vals} }
 
 func (v *Int64) Type() querypb.Type { return querypb.Type_INT64 }
 func (v *Int64) Interface() any     { return v.data }
@@ -642,9 +655,36 @@ func (v *Bytes) Type() querypb.Type { return querypb.Type_VARBINARY }
 func (v *Bytes) Interface() any     { return v.data }
 func (v *Bytes) Bytes() []byte      { return v.data }
 
-func (v *Time) Type() querypb.Type { return querypb.Type_DATETIME }
-func (v *Time) Interface() any     { return v.data }
-func (v *Time) Time() time.Time    { return v.data }
+func (v *DateTime) Type() querypb.Type { return querypb.Type_DATETIME }
+func (v *DateTime) Interface() any     { return v.data }
+func (v *DateTime) Time() time.Time    { return v.data }
+func (v *DateTime) Add(d *Duration) (*DateTime, error) {
+	switch d.Unit() {
+	case "years":
+		return &DateTime{data: v.data.AddDate(int(d.Amount()), 0, 0)}, nil
+	case "months":
+		return &DateTime{data: v.data.AddDate(0, int(d.Amount()), 0)}, nil
+	case "days":
+		return &DateTime{data: v.data.AddDate(0, 0, int(d.Amount()))}, nil
+	case "hours":
+		return &DateTime{data: v.data.Add(time.Duration(d.Amount()) * time.Hour)}, nil
+	case "minutes":
+		return &DateTime{data: v.data.Add(time.Duration(d.Amount()) * time.Minute)}, nil
+	case "seconds":
+		return &DateTime{data: v.data.Add(time.Duration(d.Amount()) * time.Second)}, nil
+	default:
+		return nil, fmt.Errorf("unsupported duration unit: %s", d.Unit())
+	}
+}
+
+func (v *Duration) Type() querypb.Type { return querypb.Type_VARCHAR }
+func (v *Duration) Interface() any     { return v.String() }
+func (v *Duration) String() string     { return fmt.Sprintf("%d %s", v.amount, v.unit) }
+func (v *Duration) Amount() int64      { return v.amount }
+func (v *Duration) Unit() string       { return v.unit }
+func (v *Duration) Scale(factor float64) *Duration {
+	return NewDuration(int64(float64(v.amount)*factor), v.unit)
+}
 
 func (v *JSON) Type() querypb.Type { return querypb.Type_JSON }
 func (v *JSON) Interface() any     { return v.data }
