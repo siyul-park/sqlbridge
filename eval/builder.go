@@ -13,10 +13,11 @@ import (
 )
 
 type Builder struct {
+	dispatcher *Dispatcher
 }
 
-func NewBuilder() *Builder {
-	return &Builder{}
+func NewBuilder(dispatcher *Dispatcher) *Builder {
+	return &Builder{dispatcher: dispatcher}
 }
 
 func (b *Builder) Build(expr sqlparser.Expr) (Expr, error) {
@@ -57,6 +58,7 @@ func (b *Builder) Build(expr sqlparser.Expr) (Expr, error) {
 		return b.buildIntervalExpr(expr)
 	case *sqlparser.CollateExpr:
 	case *sqlparser.FuncExpr:
+		return b.buildFuncExpr(expr)
 	case *sqlparser.CaseExpr:
 		return b.buildCaseExpr(expr)
 	case *sqlparser.ValuesFuncExpr:
@@ -148,7 +150,7 @@ func (b *Builder) buildComparisonExpr(expr *sqlparser.ComparisonExpr) (Expr, err
 	case sqlparser.JSONUnquoteExtractOp:
 		return &Convert{Input: &JSONExtract{Left: left, Right: right}, Type: &sqlparser.ConvertType{Type: querypb.Type_name[int32(querypb.Type_VARCHAR)]}}, nil
 	default:
-		return nil, fmt.Errorf("unsupported comparison operator %s", expr.Operator)
+		return nil, driver.ErrSkip
 	}
 }
 
@@ -198,7 +200,7 @@ func (b *Builder) buildIsExpr(expr *sqlparser.IsExpr) (Expr, error) {
 	case sqlparser.IsFalseStr:
 		return &Not{Input: &IsTrue{Input: input}}, nil
 	default:
-		return nil, fmt.Errorf("unsupported IS operator: %s", expr.Operator)
+		return nil, driver.ErrSkip
 	}
 }
 
@@ -324,7 +326,7 @@ func (b *Builder) buildBinaryExpr(expr *sqlparser.BinaryExpr) (Expr, error) {
 	case sqlparser.BitXorStr:
 		return &BitXor{Left: left, Right: right}, nil
 	default:
-		return nil, fmt.Errorf("unsupported binary operator %s", expr.Operator)
+		return nil, driver.ErrSkip
 	}
 }
 
@@ -346,7 +348,7 @@ func (b *Builder) buildUnaryExpr(expr *sqlparser.UnaryExpr) (Expr, error) {
 	case sqlparser.BinaryStr, sqlparser.UBinaryStr:
 		return &Convert{Input: input, Type: &sqlparser.ConvertType{Type: querypb.Type_name[int32(querypb.Type_VARBINARY)]}}, nil
 	default:
-		return nil, fmt.Errorf("unsupported unary operator %s", expr.Operator)
+		return nil, driver.ErrSkip
 	}
 }
 
@@ -356,6 +358,32 @@ func (b *Builder) buildIntervalExpr(expr *sqlparser.IntervalExpr) (Expr, error) 
 		return nil, err
 	}
 	return &Interval{Input: input, Unit: expr.Unit}, nil
+}
+
+func (b *Builder) buildFuncExpr(expr *sqlparser.FuncExpr) (Expr, error) {
+	args := make([]FuncArg, 0, len(expr.Exprs))
+	for _, expr := range expr.Exprs {
+		switch e := expr.(type) {
+		case *sqlparser.StarExpr:
+			args = append(args, &StartArg{Table: e.TableName})
+		case *sqlparser.AliasedExpr:
+			expr, err := b.Build(e.Expr)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, &AliasArg{Expr: expr, As: e.As})
+		default:
+			return nil, driver.ErrSkip
+		}
+	}
+	return &Func{
+		Dispatcher: b.dispatcher,
+		Qualifier:  expr.Qualifier,
+		Name:       expr.Name,
+		Distinct:   expr.Distinct,
+		Aggregate:  expr.IsAggregate(),
+		Args:       args,
+	}, nil
 }
 
 func (b *Builder) buildCaseExpr(expr *sqlparser.CaseExpr) (Expr, error) {

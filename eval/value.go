@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -92,23 +93,13 @@ func Compare(lhs, rhs Value) (int, error) {
 		if !ok {
 			return 0, fmt.Errorf("cannot compare String with %T", rhs)
 		}
-		if l.String() < r.String() {
-			return -1, nil
-		} else if l.String() > r.String() {
-			return 1, nil
-		}
-		return 0, nil
+		return strings.Compare(l.String(), r.String()), nil
 	case *Bytes:
 		r, ok := rhs.(*Bytes)
 		if !ok {
 			return 0, fmt.Errorf("cannot compare Bytes with %T", rhs)
 		}
-		if string(l.Bytes()) < string(r.Bytes()) {
-			return -1, nil
-		} else if string(l.Bytes()) > string(r.Bytes()) {
-			return 1, nil
-		}
-		return 0, nil
+		return bytes.Compare(l.Bytes(), r.Bytes()), nil
 	case *DateTime:
 		r, ok := rhs.(*DateTime)
 		if !ok {
@@ -120,6 +111,51 @@ func Compare(lhs, rhs Value) (int, error) {
 			return 1, nil
 		}
 		return 0, nil
+	case *Duration:
+		r, ok := rhs.(*Duration)
+		if !ok {
+			return 0, fmt.Errorf("cannot compare Duration with %T", rhs)
+		}
+		if l.Second() < r.Second() {
+			return -1, nil
+		} else if l.Second() > r.Second() {
+			return 1, nil
+		}
+		return 0, nil
+	case *JSON:
+		r, ok := rhs.(*JSON)
+		if !ok {
+			return 0, fmt.Errorf("cannot compare Duration with %T", rhs)
+		}
+		lb, err := l.Bytes()
+		if err != nil {
+			return 0, err
+		}
+		rb, err := r.Bytes()
+		if err != nil {
+			return 0, err
+		}
+		return bytes.Compare(lb, rb), nil
+
+	case *Tuple:
+		r, ok := rhs.(*Tuple)
+		if !ok {
+			return 0, fmt.Errorf("cannot compare Tuple with %T", rhs)
+		}
+		for i := 0; i < len(l.Values()) && i < len(r.Values()); i++ {
+			if cmp, err := Compare(l.Values()[i], r.Values()[i]); err != nil {
+				return 0, err
+			} else if cmp != 0 {
+				return cmp, nil
+			}
+		}
+		if len(l.Values()) < len(r.Values()) {
+			return -1, nil
+		} else if len(l.Values()) > len(r.Values()) {
+			return 1, nil
+		}
+		return 0, nil
+
 	default:
 		return 0, fmt.Errorf("unsupported comparison between %T and %T", lhs, rhs)
 	}
@@ -401,7 +437,7 @@ func ToInt(val Value) (int64, error) {
 	case *DateTime:
 		return v.data.Unix(), nil
 	case *JSON:
-		b, err := json.Marshal(v.Interface())
+		b, err := v.Bytes()
 		if err != nil {
 			return 0, err
 		}
@@ -427,7 +463,7 @@ func ToUint(val Value) (uint64, error) {
 	case *DateTime:
 		return uint64(v.data.Unix()), nil
 	case *JSON:
-		b, err := json.Marshal(v.Interface())
+		b, err := v.Bytes()
 		if err != nil {
 			return 0, err
 		}
@@ -453,7 +489,7 @@ func ToFloat(val Value) (float64, error) {
 	case *DateTime:
 		return float64(v.data.Unix()), nil
 	case *JSON:
-		b, err := json.Marshal(v.Interface())
+		b, err := v.Bytes()
 		if err != nil {
 			return 0, err
 		}
@@ -481,7 +517,7 @@ func ToString(val Value) (string, error) {
 	case *Duration:
 		return v.String(), nil
 	case *JSON:
-		b, err := json.Marshal(v.Interface())
+		b, err := v.Bytes()
 		if err != nil {
 			return "", err
 		}
@@ -508,7 +544,7 @@ func ToBytes(val Value) ([]byte, error) {
 	case *Duration:
 		return []byte(v.String()), nil
 	case *JSON:
-		return json.Marshal(v.Interface())
+		return v.Bytes()
 	default:
 		return nil, fmt.Errorf("cannot convert %T to bytes", val)
 	}
@@ -685,9 +721,30 @@ func (v *Duration) Unit() string       { return v.unit }
 func (v *Duration) Scale(factor float64) *Duration {
 	return NewDuration(int64(float64(v.amount)*factor), v.unit)
 }
+func (v *Duration) Second() int64 {
+	switch v.unit {
+	case "years":
+		return v.amount * 365 * 24 * 60 * 60
+	case "months":
+		return v.amount * 30 * 24 * 60 * 60
+	case "days":
+		return v.amount * 24 * 60 * 60
+	case "hours":
+		return v.amount * 60 * 60
+	case "minutes":
+		return v.amount * 60
+	case "seconds":
+		return v.amount
+	default:
+		return 0
+	}
+}
 
 func (v *JSON) Type() querypb.Type { return querypb.Type_JSON }
 func (v *JSON) Interface() any     { return v.data }
+func (v *JSON) Bytes() ([]byte, error) {
+	return json.Marshal(v.data)
+}
 
 func (v *Tuple) Type() querypb.Type { return querypb.Type_TUPLE }
 func (v *Tuple) Interface() any {

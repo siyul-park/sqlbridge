@@ -14,10 +14,10 @@ type Planner struct {
 	builder *eval.Builder
 }
 
-func NewPlanner(catalog schema.Catalog) *Planner {
+func NewPlanner(catalog schema.Catalog, dispatcher *eval.Dispatcher) *Planner {
 	return &Planner{
 		catalog: catalog,
-		builder: eval.NewBuilder(),
+		builder: eval.NewBuilder(dispatcher),
 	}
 }
 

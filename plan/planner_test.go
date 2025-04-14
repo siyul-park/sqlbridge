@@ -24,7 +24,8 @@ func TestPlanner_Plan(t *testing.T) {
 		"t1": t1,
 		"t2": t2,
 	})
-	planner := NewPlanner(catalog)
+	dispatcher := eval.NewDispatcher()
+	planner := NewPlanner(catalog, dispatcher)
 
 	tests := []struct {
 		node sqlparser.Statement

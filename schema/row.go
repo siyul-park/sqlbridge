@@ -6,11 +6,11 @@ import (
 )
 
 type Row struct {
-	Columns []*sqlparser.ColName
-	Values  []sqltypes.Value
-	Records []*Row
+	Columns  []*sqlparser.ColName
+	Values   []sqltypes.Value
+	Children []Row
 }
 
 func (r *Row) IsEmpty() bool {
-	return len(r.Columns) == 0 && len(r.Values) == 0 && len(r.Records) == 0
+	return len(r.Columns) == 0 && len(r.Values) == 0 && len(r.Children) == 0
 }
