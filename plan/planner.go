@@ -160,7 +160,7 @@ func (p *Planner) planJoinTableExpr(node *sqlparser.JoinTableExpr) (Plan, error)
 	}
 
 	if node.Condition.On != nil {
-		expr, err := p.builder.Build(node.Condition.On)
+		expr, err := p.planExpr(node.Condition.On)
 		if err != nil {
 			return nil, err
 		}
@@ -183,7 +183,7 @@ func (p *Planner) planSubquery(node *sqlparser.Subquery) (Plan, error) {
 
 func (p *Planner) planWhere(input Plan, node *sqlparser.Where) (Plan, error) {
 	if node != nil {
-		expr, err := p.builder.Build(node.Expr)
+		expr, err := p.planExpr(node.Expr)
 		if err != nil {
 			return nil, err
 		}
@@ -201,7 +201,7 @@ func (p *Planner) planGroupBy(input Plan, node sqlparser.GroupBy) (Plan, error) 
 
 func (p *Planner) planHaving(input Plan, node *sqlparser.Where) (Plan, error) {
 	if node != nil {
-		expr, err := p.builder.Build(node.Expr)
+		expr, err := p.planExpr(node.Expr)
 		if err != nil {
 			return nil, err
 		}
@@ -221,7 +221,7 @@ func (p *Planner) planSelectExprs(input Plan, node sqlparser.SelectExprs) (Plan,
 			case *sqlparser.StarExpr:
 				items = append(items, &StartItem{Table: e.TableName})
 			case *sqlparser.AliasedExpr:
-				expr, err := p.builder.Build(e.Expr)
+				expr, err := p.planExpr(e.Expr)
 				if err != nil {
 					return nil, err
 				}
@@ -241,7 +241,7 @@ func (p *Planner) planSelectExprs(input Plan, node sqlparser.SelectExprs) (Plan,
 func (p *Planner) planOrderBy(input Plan, node sqlparser.OrderBy) (Plan, error) {
 	left := input
 	for i := len(node) - 1; i >= 0; i-- {
-		expr, err := p.builder.Build(node[i].Expr)
+		expr, err := p.planExpr(node[i].Expr)
 		if err != nil {
 			return nil, err
 		}
@@ -255,5 +255,24 @@ func (p *Planner) planOrderBy(input Plan, node sqlparser.OrderBy) (Plan, error) 
 }
 
 func (p *Planner) planLimit(input Plan, node *sqlparser.Limit) (Plan, error) {
-	return input, nil
+	offset, err := p.planExpr(node.Offset)
+	if err != nil {
+		return nil, err
+	}
+	count, err := p.planExpr(node.Rowcount)
+	if err != nil {
+		return nil, err
+	}
+	return &Limit{
+		Input:  input,
+		Offset: offset,
+		Count:  count,
+	}, nil
+}
+
+func (p *Planner) planExpr(node sqlparser.Expr) (eval.Expr, error) {
+	if node == nil {
+		return nil, nil
+	}
+	return p.builder.Build(node)
 }
