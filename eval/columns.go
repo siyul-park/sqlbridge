@@ -30,5 +30,5 @@ func (e *Columns) Eval(_ context.Context, row schema.Row, _ map[string]*querypb.
 }
 
 func (e *Columns) String() string {
-	return fmt.Sprintf("Columns(%s)", e.Value.Name)
+	return fmt.Sprintf("Left(%s)", e.Value.Name)
 }

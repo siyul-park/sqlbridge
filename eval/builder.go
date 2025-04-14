@@ -460,28 +460,28 @@ func (b *Builder) buildSubstrExpr(expr *sqlparser.SubstrExpr) (Expr, error) {
 }
 
 func (b *Builder) buildMatchExpr(expr *sqlparser.MatchExpr) (Expr, error) {
-	input, err := b.Build(expr.Expr)
-	if err != nil {
-		return nil, err
-	}
-	columns := make([]Expr, 0, len(expr.Columns))
+	left := make([]Expr, 0, len(expr.Columns))
 	for _, expr := range expr.Columns {
 		switch e := expr.(type) {
 		case *sqlparser.StarExpr:
-			columns = append(columns, &Columns{Value: e.TableName})
+			left = append(left, &Columns{Value: e.TableName})
 		case *sqlparser.AliasedExpr:
 			expr, err := b.Build(e.Expr)
 			if err != nil {
 				return nil, err
 			}
-			columns = append(columns, expr)
+			left = append(left, expr)
 		default:
 			return nil, driver.ErrSkip
 		}
 	}
+	right, err := b.Build(expr.Expr)
+	if err != nil {
+		return nil, err
+	}
 	return &Match{
-		Input:   input,
-		Columns: columns,
+		Left:  left,
+		Right: right,
 	}, nil
 }
 

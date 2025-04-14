@@ -10,15 +10,15 @@ import (
 )
 
 type Match struct {
-	Input   Expr
-	Columns []Expr
+	Left  []Expr
+	Right Expr
 }
 
 var _ Expr = (*Match)(nil)
 
 func (e *Match) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
 	var columns []string
-	for _, expr := range e.Columns {
+	for _, expr := range e.Left {
 		val, err := expr.Eval(ctx, row, binds)
 		if err != nil {
 			return nil, err
@@ -41,17 +41,17 @@ func (e *Match) Eval(ctx context.Context, row schema.Row, binds map[string]*quer
 		}
 	}
 
-	expr, err := e.Input.Eval(ctx, row, binds)
+	left, err := e.Right.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
 	}
-	str, err := ToString(expr)
+	pattern, err := ToString(left)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, col := range columns {
-		if strings.Contains(col, str) {
+		if strings.Contains(col, pattern) {
 			return True, nil
 		}
 	}
@@ -60,8 +60,8 @@ func (e *Match) Eval(ctx context.Context, row schema.Row, binds map[string]*quer
 
 func (e *Match) String() string {
 	var columns []string
-	for _, col := range e.Columns {
+	for _, col := range e.Left {
 		columns = append(columns, col.String())
 	}
-	return fmt.Sprintf("Match(%s, %s)", strings.Join(columns, ", "), e.Input.String())
+	return fmt.Sprintf("Match(%s, %s)", strings.Join(columns, ", "), e.Right.String())
 }
