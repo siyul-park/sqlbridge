@@ -2,41 +2,31 @@ package eval
 
 import (
 	"errors"
-	"sync"
+	"strings"
 )
 
 type Dispatcher struct {
 	fns map[string]Function
-	mu  sync.RWMutex
 }
+
+type Option func(*Dispatcher)
 
 type Function func(args []Value) (Value, error)
 
-func NewDispatcher() *Dispatcher {
-	return &Dispatcher{
-		fns: make(map[string]Function),
+func WithFunction(name string, f Function) Option {
+	return func(d *Dispatcher) { d.fns[strings.ToLower(name)] = f }
+}
+
+func NewDispatcher(opts ...Option) *Dispatcher {
+	d := &Dispatcher{fns: make(map[string]Function)}
+	for _, opt := range opts {
+		opt(d)
 	}
-}
-
-func (d *Dispatcher) Register(name string, fn Function) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	d.fns[name] = fn
-}
-
-func (d *Dispatcher) Unregister(name string) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	delete(d.fns, name)
+	return d
 }
 
 func (d *Dispatcher) Dispatch(name string, args []Value) (Value, error) {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
-	fn, ok := d.fns[name]
+	fn, ok := d.fns[strings.ToLower(name)]
 	if !ok {
 		return nil, errors.New("function not found: " + name)
 	}

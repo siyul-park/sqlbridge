@@ -16,8 +16,11 @@ type Builder struct {
 	dispatcher *Dispatcher
 }
 
-func NewBuilder(dispatcher *Dispatcher) *Builder {
-	return &Builder{dispatcher: dispatcher}
+func NewBuilder(opts ...Option) *Builder {
+	if len(opts) == 0 {
+		opts = append(opts, Builtin())
+	}
+	return &Builder{dispatcher: NewDispatcher(opts...)}
 }
 
 func (b *Builder) Build(expr sqlparser.Expr) (Expr, error) {
@@ -66,6 +69,7 @@ func (b *Builder) Build(expr sqlparser.Expr) (Expr, error) {
 	case *sqlparser.ConvertExpr:
 		return b.buildConvertExpr(expr)
 	case *sqlparser.SubstrExpr:
+		return b.buildSubstrExpr(expr)
 	case *sqlparser.ConvertUsingExpr:
 	case *sqlparser.MatchExpr:
 	case *sqlparser.GroupConcatExpr:
@@ -424,4 +428,28 @@ func (b *Builder) buildConvertExpr(expr *sqlparser.ConvertExpr) (Expr, error) {
 		return nil, err
 	}
 	return &Convert{Input: input, Type: expr.Type}, nil
+}
+
+func (b *Builder) buildSubstrExpr(expr *sqlparser.SubstrExpr) (Expr, error) {
+	args := []FuncArg{&AliasArg{Expr: &Column{Value: expr.Name}}}
+	if expr.From != nil {
+		from, err := b.Build(expr.From)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, &AliasArg{Expr: from})
+	}
+	if expr.To != nil {
+		to, err := b.Build(expr.To)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, &AliasArg{Expr: to})
+	}
+	return &Func{
+		Dispatcher: b.dispatcher,
+		Name:       sqlparser.NewColIdent("substr"),
+		Args:       args,
+	}, nil
+
 }
