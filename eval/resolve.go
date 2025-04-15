@@ -9,13 +9,13 @@ import (
 	"github.com/xwb1989/sqlparser/dependency/sqltypes"
 )
 
-type Bind struct {
+type Resolve struct {
 	Value string
 }
 
-var _ Expr = (*Bind)(nil)
+var _ Expr = (*Resolve)(nil)
 
-func (e *Bind) Eval(_ context.Context, _ schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
+func (e *Resolve) Eval(_ context.Context, _ schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
 	val, ok := binds[e.Value]
 	if !ok {
 		return nil, nil
@@ -36,6 +36,6 @@ func (e *Bind) Eval(_ context.Context, _ schema.Row, binds map[string]*querypb.B
 	}
 }
 
-func (e *Bind) String() string {
-	return fmt.Sprintf("Bind(%s)", e.Value)
+func (e *Resolve) String() string {
+	return fmt.Sprintf("Resolve(%s)", e.Value)
 }

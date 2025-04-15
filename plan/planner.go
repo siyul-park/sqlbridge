@@ -528,7 +528,7 @@ func (p *Planner) planSQLVal(expr *sqlparser.SQLVal) (eval.Expr, error) {
 			return &eval.Literal{Value: val}, nil
 		}
 	case sqlparser.ValArg:
-		return &eval.Bind{Value: string(expr.Val)}, nil
+		return &eval.Resolve{Value: string(expr.Val)}, nil
 	case sqlparser.BitVal:
 		if data, ok := new(big.Int).SetString(string(expr.Val), 2); !ok {
 			return nil, fmt.Errorf("invalid bit string '%s'", expr.Val)
@@ -570,7 +570,7 @@ func (p *Planner) planValTuple(expr sqlparser.ValTuple) (eval.Expr, error) {
 }
 
 func (p *Planner) planListArg(expr sqlparser.ListArg) (eval.Expr, error) {
-	return &eval.Bind{Value: string(expr)}, nil
+	return &eval.Resolve{Value: string(expr)}, nil
 }
 
 func (p *Planner) planBinaryExpr(expr *sqlparser.BinaryExpr) (eval.Expr, error) {
@@ -778,15 +778,15 @@ func (p *Planner) planGroupConcatExpr(expr *sqlparser.GroupConcatExpr) (eval.Exp
 
 	input := eval.Expr(&eval.Paren{Exprs: exprs})
 
-	for i := len(expr.OrderBy) - 1; i >= 0; i-- {
-		right, err := p.planExpr(expr.OrderBy[i].Expr)
+	for _, order := range expr.OrderBy {
+		right, err := p.planExpr(order.Expr)
 		if err != nil {
 			return nil, err
 		}
 		input = &eval.Order{
 			Left:      input,
 			Right:     right,
-			Direction: expr.OrderBy[i].Direction,
+			Direction: order.Direction,
 		}
 	}
 

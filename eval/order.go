@@ -24,25 +24,21 @@ func (e *Order) Eval(ctx context.Context, row schema.Row, binds map[string]*quer
 	}
 
 	type pair struct {
-		left  Value
-		right Value
+		key Value
+		row schema.Row
 	}
 
 	var pairs []pair
-	for _, r := range row.Children {
-		lv, err := e.Left.Eval(ctx, r, binds)
+	for _, row := range row.Children {
+		key, err := e.Right.Eval(ctx, row, binds)
 		if err != nil {
 			return nil, err
 		}
-		rv, err := e.Right.Eval(ctx, r, binds)
-		if err != nil {
-			return nil, err
-		}
-		pairs = append(pairs, pair{left: lv, right: rv})
+		pairs = append(pairs, pair{row: row, key: key})
 	}
 
 	sort.SliceStable(pairs, func(i, j int) bool {
-		cmp, err := Compare(pairs[i].right, pairs[j].right)
+		cmp, err := Compare(pairs[i].key, pairs[j].key)
 		if err != nil {
 			return false
 		}
@@ -52,11 +48,12 @@ func (e *Order) Eval(ctx context.Context, row schema.Row, binds map[string]*quer
 		return cmp < 0
 	})
 
-	var values []Value
-	for _, p := range pairs {
-		values = append(values, p.left)
+	row.Children = nil
+	for _, pair := range pairs {
+		row.Children = append(row.Children, pair.row)
 	}
-	return NewTuple(values), nil
+
+	return e.Left.Eval(ctx, row, binds)
 }
 
 func (e *Order) String() string {
