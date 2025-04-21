@@ -43,16 +43,16 @@ func (p *Group) Run(ctx context.Context, binds map[string]*querypb.BindVariable)
 		}
 		key := eval.NewTuple(vals)
 
-		ok := false
+		duplicate := false
 		for i, k := range keys {
 			cmp, err := eval.Compare(k, key)
 			if cmp == 0 && err == nil {
 				children[i] = append(children[i], row)
-				ok = true
+				duplicate = true
 				break
 			}
 		}
-		if !ok {
+		if !duplicate {
 			keys = append(keys, key)
 			children = append(children, []schema.Row{row})
 		}

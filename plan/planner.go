@@ -154,7 +154,6 @@ func (p *Planner) planJoinTableExpr(node *sqlparser.JoinTableExpr) (Plan, error)
 	if err != nil {
 		return nil, err
 	}
-
 	right, err := p.planTableExpr(node.RightExpr)
 	if err != nil {
 		return nil, err

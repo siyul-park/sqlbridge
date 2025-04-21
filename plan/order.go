@@ -31,8 +31,8 @@ func (p *Order) Run(ctx context.Context, binds map[string]*querypb.BindVariable)
 	}
 
 	var pairs []struct {
-		row   schema.Row
-		value eval.Value
+		key eval.Value
+		row schema.Row
 	}
 
 	for _, row := range rows {
@@ -41,13 +41,13 @@ func (p *Order) Run(ctx context.Context, binds map[string]*querypb.BindVariable)
 			return nil, err
 		}
 		pairs = append(pairs, struct {
-			row   schema.Row
-			value eval.Value
-		}{row: row, value: val})
+			key eval.Value
+			row schema.Row
+		}{key: val, row: row})
 	}
 
 	sort.SliceStable(pairs, func(i, j int) bool {
-		cmp, err := eval.Compare(pairs[i].value, pairs[j].value)
+		cmp, err := eval.Compare(pairs[i].key, pairs[j].key)
 		if err != nil {
 			return false
 		}
