@@ -25,7 +25,7 @@ func (e *Order) Eval(ctx context.Context, row schema.Row, binds map[string]*quer
 
 	type pair struct {
 		key Value
-		row schema.Row
+		val schema.Row
 	}
 
 	var pairs []pair
@@ -34,7 +34,7 @@ func (e *Order) Eval(ctx context.Context, row schema.Row, binds map[string]*quer
 		if err != nil {
 			return nil, err
 		}
-		pairs = append(pairs, pair{row: row, key: key})
+		pairs = append(pairs, pair{key: key, val: row})
 	}
 
 	sort.SliceStable(pairs, func(i, j int) bool {
@@ -50,9 +50,8 @@ func (e *Order) Eval(ctx context.Context, row schema.Row, binds map[string]*quer
 
 	row.Children = nil
 	for _, pair := range pairs {
-		row.Children = append(row.Children, pair.row)
+		row.Children = append(row.Children, pair.val)
 	}
-
 	return e.Left.Eval(ctx, row, binds)
 }
 

@@ -155,6 +155,24 @@ func TestPlanner_Plan(t *testing.T) {
 				From: sqlparser.TableExprs{
 					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 				},
+				Distinct: sqlparser.DistinctStr,
+			},
+			plan: &Distinct{
+				Input: &Projection{
+					Input: &Alias{
+						Input: &Scan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+						As:    sqlparser.NewTableIdent("t1"),
+					},
+					Items: []ProjectionItem{&StartItem{}},
+				},
+			},
+		},
+		{
+			node: &sqlparser.Select{
+				SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
+				From: sqlparser.TableExprs{
+					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+				},
 				OrderBy: sqlparser.OrderBy{
 					&sqlparser.Order{
 						Expr:      &sqlparser.ColName{Name: sqlparser.NewColIdent("id")},

@@ -68,18 +68,18 @@ func (p *Group) Run(ctx context.Context, binds map[string]*querypb.BindVariable)
 
 		for _, row := range rows[1:] {
 			for i := 0; i < len(columns); i++ {
-				val1, err := eval.FromSQL(values[i])
+				val, _ := row.Get(columns[i])
+
+				v1, err := eval.FromSQL(values[i])
+				if err != nil {
+					return nil, err
+				}
+				v2, err := eval.FromSQL(val)
 				if err != nil {
 					return nil, err
 				}
 
-				raw, _ := row.Get(columns[i])
-				val2, err := eval.FromSQL(raw)
-				if err != nil {
-					return nil, err
-				}
-
-				cmp, err := eval.Compare(val1, val2)
+				cmp, err := eval.Compare(v1, v2)
 				if cmp != 0 || err != nil {
 					columns = append(columns[:i], columns[i+1:]...)
 					values = append(values[:i], values[i+1:]...)

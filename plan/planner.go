@@ -69,6 +69,8 @@ func (p *Planner) planSelect(node *sqlparser.Select) (Plan, error) {
 		return nil, err
 	} else if input, err = p.planSelectExprs(input, node.SelectExprs); err != nil {
 		return nil, err
+	} else if input, err = p.planDistinct(input, node.Distinct); err != nil {
+		return nil, err
 	} else if input, err = p.planOrderBy(input, node.OrderBy); err != nil {
 		return nil, err
 	} else if input, err = p.planLimit(input, node.Limit); err != nil {
@@ -257,6 +259,13 @@ func (p *Planner) planSelectExprs(input Plan, node sqlparser.SelectExprs) (Plan,
 			Input: input,
 			Items: items,
 		}, nil
+	}
+	return input, nil
+}
+
+func (p *Planner) planDistinct(input Plan, distinct string) (Plan, error) {
+	if distinct == sqlparser.DistinctStr {
+		input = &Distinct{Input: input}
 	}
 	return input, nil
 }
