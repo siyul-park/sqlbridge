@@ -249,7 +249,16 @@ func (p *Planner) planSelectExprs(input Plan, node sqlparser.SelectExprs) (Plan,
 				if err != nil {
 					return nil, err
 				}
-				items = append(items, &AliasItem{Expr: expr, As: e.As})
+				as := e.As
+				if as.IsEmpty() {
+					switch expr := expr.(type) {
+					case *eval.Column:
+						as = expr.Value.Name
+					default:
+						as = sqlparser.NewColIdent(sqlparser.String(e.Expr))
+					}
+				}
+				items = append(items, &AliasItem{Expr: expr, As: as})
 			default:
 				return nil, driver.ErrSkip
 			}
