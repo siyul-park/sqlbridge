@@ -7,6 +7,7 @@ import (
 
 	"github.com/siyul-park/sqlbridge/eval"
 	"github.com/siyul-park/sqlbridge/schema"
+	"github.com/xwb1989/sqlparser"
 	"github.com/xwb1989/sqlparser/dependency/querypb"
 )
 
@@ -50,7 +51,7 @@ func (p *Order) Run(ctx context.Context, binds map[string]*querypb.BindVariable)
 		if err != nil {
 			return false
 		}
-		if p.Direction == "DESC" {
+		if p.Direction == sqlparser.DescScr {
 			cmp = -cmp
 		}
 		return cmp < 0

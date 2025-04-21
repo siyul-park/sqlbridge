@@ -3,9 +3,9 @@ package plan
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/siyul-park/sqlbridge/eval"
-
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser"
 	"github.com/xwb1989/sqlparser/dependency/querypb"
@@ -14,9 +14,8 @@ import (
 type Join struct {
 	Left  Plan
 	Right Plan
-	Join  string
-	On    eval.Expr
-	Using []eval.Expr
+	Kind  string
+	Expr  eval.Expr
 }
 
 var _ Plan = (*Join)(nil)
@@ -41,7 +40,7 @@ func (p *Join) Run(ctx context.Context, binds map[string]*querypb.BindVariable) 
 	}
 
 	var joins []schema.Row
-	switch p.Join {
+	switch p.Kind {
 	case sqlparser.JoinStr:
 		for _, l := range lhs {
 			for _, r := range rhs {
@@ -49,49 +48,33 @@ func (p *Join) Run(ctx context.Context, binds map[string]*querypb.BindVariable) 
 					Columns: append(l.Columns, r.Columns...),
 					Values:  append(l.Values, r.Values...),
 				}
-
-				if p.On != nil {
-					val, err := p.On.Eval(ctx, join, binds)
-					if err != nil {
-						return nil, err
-					}
-					if !eval.ToBool(val) {
-						continue
-					}
-				}
-
-				ok := true
-				for _, using := range p.Using {
-					lv, err := using.Eval(ctx, l, binds)
-					if err != nil {
-						return nil, err
-					}
-					rv, err := using.Eval(ctx, r, binds)
-					if err != nil {
-						return nil, err
-					}
-
-					if cmp, err := eval.Compare(lv, rv); err != nil {
-						return nil, err
-					} else if cmp == 0 {
-						ok = false
-						break
-					}
-				}
-				if !ok {
+				if val, err := p.Expr.Eval(ctx, join, binds); err != nil {
+					return nil, err
+				} else if !eval.ToBool(val) {
 					continue
 				}
-
 				joins = append(joins, join)
 			}
 		}
 	default:
-		return nil, fmt.Errorf("unknown join type: %s", p.Join)
+		return nil, fmt.Errorf("unknown join type: %s", p.Kind)
 	}
 
 	return schema.NewInMemoryCursor(joins), nil
 }
 
 func (p *Join) String() string {
-	return fmt.Sprintf("Join(%s, %s, %s, %s)", p.Left.String(), p.Right.String(), p.Join, p.On.String())
+	var sb strings.Builder
+	sb.WriteString("Join(")
+	sb.WriteString(p.Left.String())
+	sb.WriteString(", ")
+	sb.WriteString(p.Right.String())
+	sb.WriteString(", ")
+	sb.WriteString(p.Kind)
+	if p.Expr != nil {
+		sb.WriteString(", ")
+		sb.WriteString(p.Expr.String())
+	}
+	sb.WriteString(")")
+	return sb.String()
 }

@@ -7,13 +7,11 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/xwb1989/sqlparser/dependency/querypb"
-	"github.com/xwb1989/sqlparser/dependency/sqltypes"
-
 	"github.com/siyul-park/sqlbridge/eval"
-
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser"
+	"github.com/xwb1989/sqlparser/dependency/querypb"
+	"github.com/xwb1989/sqlparser/dependency/sqltypes"
 )
 
 type Planner struct {
@@ -98,7 +96,7 @@ func (p *Planner) planTableExprs(node sqlparser.TableExprs) (Plan, error) {
 		left = &Join{
 			Left:  left,
 			Right: right,
-			Join:  sqlparser.JoinStr,
+			Kind:  sqlparser.JoinStr,
 		}
 	}
 	return left, nil
@@ -163,20 +161,24 @@ func (p *Planner) planJoinTableExpr(node *sqlparser.JoinTableExpr) (Plan, error)
 	plan := &Join{
 		Left:  left,
 		Right: right,
-		Join:  node.Join,
+		Kind:  node.Join,
 	}
 
 	if node.Condition.On != nil {
-		expr, err := p.planExpr(node.Condition.On)
-		if err != nil {
+		if expr, err := p.planExpr(node.Condition.On); err != nil {
 			return nil, err
+		} else {
+			plan.Expr = expr
 		}
-		plan.On = expr
 	}
-	for _, using := range node.Condition.Using {
-		plan.Using = append(plan.Using, &eval.Column{Value: &sqlparser.ColName{Name: using}})
+	for _, u := range node.Condition.Using {
+		e := &eval.Using{Value: u}
+		if plan.Expr != nil {
+			plan.Expr = &eval.And{Left: plan.Expr, Right: e}
+		} else {
+			plan.Expr = e
+		}
 	}
-
 	return plan, nil
 }
 

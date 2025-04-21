@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/siyul-park/sqlbridge/eval"
-
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser/dependency/querypb"
 )

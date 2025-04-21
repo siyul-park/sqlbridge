@@ -4,12 +4,11 @@ import (
 	"testing"
 
 	"github.com/siyul-park/sqlbridge/eval"
-
 	"github.com/siyul-park/sqlbridge/schema"
-	"github.com/xwb1989/sqlparser/dependency/sqltypes"
-
 	"github.com/stretchr/testify/require"
 	"github.com/xwb1989/sqlparser"
+	"github.com/xwb1989/sqlparser/dependency/querypb"
+	"github.com/xwb1989/sqlparser/dependency/sqltypes"
 )
 
 func TestPlanner_Plan(t *testing.T) {
@@ -48,6 +47,21 @@ func TestPlanner_Plan(t *testing.T) {
 		},
 		{
 			node: &sqlparser.Select{
+				SelectExprs: sqlparser.SelectExprs{&sqlparser.AliasedExpr{Expr: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}, As: sqlparser.NewColIdent("id")}},
+				From: sqlparser.TableExprs{
+					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+				},
+			},
+			plan: &Projection{
+				Input: &Alias{
+					Input: &Scan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+					As:    sqlparser.NewTableIdent("t1"),
+				},
+				Items: []ProjectionItem{&AliasItem{Expr: &eval.Column{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}}, As: sqlparser.NewColIdent("id")}},
+			},
+		},
+		{
+			node: &sqlparser.Select{
 				SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
 				From: sqlparser.TableExprs{
 					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
@@ -73,6 +87,114 @@ func TestPlanner_Plan(t *testing.T) {
 					},
 				},
 				Items: []ProjectionItem{&StartItem{}},
+			},
+		},
+		{
+			node: &sqlparser.Select{
+				SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
+				From: sqlparser.TableExprs{
+					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+				},
+				GroupBy: sqlparser.GroupBy{
+					&sqlparser.ColName{Name: sqlparser.NewColIdent("name")},
+				},
+			},
+			plan: &Projection{
+				Input: &Group{
+					Input: &Alias{
+						Input: &Scan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+						As:    sqlparser.NewTableIdent("t1"),
+					},
+					Exprs: []eval.Expr{
+						&eval.Column{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("name")}},
+					},
+				},
+				Items: []ProjectionItem{&StartItem{}},
+			},
+		},
+		{
+			node: &sqlparser.Select{
+				SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
+				From: sqlparser.TableExprs{
+					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+				},
+				GroupBy: sqlparser.GroupBy{
+					&sqlparser.ColName{Name: sqlparser.NewColIdent("name")},
+				},
+				Having: &sqlparser.Where{
+					Type: sqlparser.HavingStr,
+					Expr: &sqlparser.ComparisonExpr{
+						Operator: sqlparser.EqualStr,
+						Left:     &sqlparser.ColName{Name: sqlparser.NewColIdent("name")},
+						Right:    &sqlparser.SQLVal{Type: sqlparser.StrVal, Val: []byte("foo")},
+					},
+				},
+			},
+			plan: &Projection{
+				Input: &Filter{
+					Input: &Group{
+						Input: &Alias{
+							Input: &Scan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+							As:    sqlparser.NewTableIdent("t1"),
+						},
+						Exprs: []eval.Expr{
+							&eval.Column{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("name")}},
+						},
+					},
+					Expr: &eval.Equal{
+						Left:  &eval.Column{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("name")}},
+						Right: &eval.Literal{Value: sqltypes.MakeTrusted(querypb.Type_VARCHAR, []byte("foo"))},
+					},
+				},
+				Items: []ProjectionItem{&StartItem{}},
+			},
+		},
+		{
+			node: &sqlparser.Select{
+				SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
+				From: sqlparser.TableExprs{
+					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+				},
+				OrderBy: sqlparser.OrderBy{
+					&sqlparser.Order{
+						Expr:      &sqlparser.ColName{Name: sqlparser.NewColIdent("id")},
+						Direction: sqlparser.AscScr,
+					},
+				},
+			},
+			plan: &Order{
+				Input: &Projection{
+					Input: &Alias{
+						Input: &Scan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+						As:    sqlparser.NewTableIdent("t1"),
+					},
+					Items: []ProjectionItem{&StartItem{}},
+				},
+				Expr:      &eval.Column{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
+				Direction: sqlparser.AscScr,
+			},
+		},
+		{
+			node: &sqlparser.Select{
+				SelectExprs: sqlparser.SelectExprs{&sqlparser.StarExpr{}},
+				From: sqlparser.TableExprs{
+					&sqlparser.AliasedTableExpr{Expr: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+				},
+				Limit: &sqlparser.Limit{
+					Offset:   sqlparser.NewIntVal([]byte("1")),
+					Rowcount: sqlparser.NewIntVal([]byte("1")),
+				},
+			},
+			plan: &Limit{
+				Input: &Projection{
+					Input: &Alias{
+						Input: &Scan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+						As:    sqlparser.NewTableIdent("t1"),
+					},
+					Items: []ProjectionItem{&StartItem{}},
+				},
+				Offset: &eval.Literal{Value: sqltypes.NewInt64(1)},
+				Count:  &eval.Literal{Value: sqltypes.NewInt64(1)},
 			},
 		},
 	}

@@ -13,7 +13,7 @@ type Row struct {
 
 func (r *Row) Get(name *sqlparser.ColName) (sqltypes.Value, bool) {
 	for i, col := range r.Columns {
-		if col.Equal(name) {
+		if (name.Qualifier.IsEmpty() && col.Name.Equal(name.Name)) || (!name.Qualifier.IsEmpty() && col.Equal(name)) {
 			return r.Values[i], true
 		}
 	}

@@ -16,14 +16,13 @@ type Column struct {
 var _ Expr = (*Column)(nil)
 
 func (e *Column) Eval(_ context.Context, row schema.Row, _ map[string]*querypb.BindVariable) (Value, error) {
-	for i, col := range row.Columns {
-		if col.Equal(e.Value) {
-			return FromSQL(row.Values[i])
-		}
+	val, ok := row.Get(e.Value)
+	if !ok {
+		return nil, nil
 	}
-	return nil, nil
+	return FromSQL(val)
 }
 
 func (e *Column) String() string {
-	return fmt.Sprintf("Left(%s)", sqlparser.String(e.Value))
+	return fmt.Sprintf("Column(%s)", sqlparser.String(e.Value))
 }

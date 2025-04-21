@@ -316,28 +316,28 @@ func FromSQL(val sqltypes.Value) (Value, error) {
 
 	switch val.Type() {
 	case sqltypes.Int8, sqltypes.Int16, sqltypes.Int24, sqltypes.Int32, sqltypes.Int64:
-		i, err := strconv.ParseInt(val.String(), 10, 64)
+		i, err := strconv.ParseInt(string(val.Raw()), 10, 64)
 		if err != nil {
 			return nil, err
 		}
 		return &Int64{data: i}, nil
 
 	case sqltypes.Uint8, sqltypes.Uint16, sqltypes.Uint24, sqltypes.Uint32, sqltypes.Uint64:
-		u, err := strconv.ParseUint(val.String(), 10, 64)
+		u, err := strconv.ParseUint(string(val.Raw()), 10, 64)
 		if err != nil {
 			return nil, err
 		}
 		return &Uint64{data: u}, nil
 
 	case sqltypes.Float32, sqltypes.Float64:
-		f, err := strconv.ParseFloat(val.String(), 64)
+		f, err := strconv.ParseFloat(string(val.Raw()), 64)
 		if err != nil {
 			return nil, err
 		}
 		return &Float64{data: f}, nil
 
 	case sqltypes.Decimal:
-		f, err := strconv.ParseFloat(val.String(), 64)
+		f, err := strconv.ParseFloat(string(val.Raw()), 64)
 		if err != nil {
 			return nil, err
 		}
@@ -345,14 +345,14 @@ func FromSQL(val sqltypes.Value) (Value, error) {
 
 	case sqltypes.Char, sqltypes.VarChar, sqltypes.Text,
 		sqltypes.Enum, sqltypes.Set:
-		return &String{data: val.String()}, nil
+		return &String{data: string(val.Raw())}, nil
 
 	case sqltypes.Binary, sqltypes.VarBinary, sqltypes.Blob,
 		sqltypes.Geometry, sqltypes.Bit, sqltypes.Expression:
 		return &Bytes{data: val.Raw()}, nil
 
 	case sqltypes.Date:
-		t, err := time.Parse(time.DateOnly, val.String())
+		t, err := time.Parse(time.DateOnly, string(val.Raw()))
 		if err != nil {
 			return nil, err
 		}
@@ -367,7 +367,7 @@ func FromSQL(val sqltypes.Value) (Value, error) {
 		var t time.Time
 		var err error
 		for _, layout := range layouts {
-			t, err = time.Parse(layout, val.String())
+			t, err = time.Parse(layout, string(val.Raw()))
 			if err == nil {
 				return &DateTime{data: t}, nil
 			}
@@ -375,14 +375,14 @@ func FromSQL(val sqltypes.Value) (Value, error) {
 		return nil, fmt.Errorf("cannot parse datetime: %w", err)
 
 	case sqltypes.Time:
-		t, err := time.Parse(time.TimeOnly, val.String())
+		t, err := time.Parse(time.TimeOnly, string(val.Raw()))
 		if err != nil {
 			return nil, err
 		}
 		return &DateTime{data: t}, nil
 
 	case sqltypes.Year:
-		t, err := time.Parse("2006", val.String())
+		t, err := time.Parse("2006", string(val.Raw()))
 		if err != nil {
 			return nil, err
 		}

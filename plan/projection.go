@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/siyul-park/sqlbridge/eval"
-
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser"
 	"github.com/xwb1989/sqlparser/dependency/querypb"
@@ -91,7 +90,7 @@ func (*StartItem) iProjectionItem() {
 }
 
 func (t *StartItem) String() string {
-	return sqlparser.String(t.Table)
+	return fmt.Sprintf("Start(%s)", sqlparser.String(t.Table))
 }
 
 func (*AliasItem) iProjectionItem() {
