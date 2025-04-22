@@ -478,6 +478,7 @@ func (p *Planner) planRangeCond(expr *sqlparser.RangeCond) (eval.Expr, error) {
 			Right: to,
 		},
 	})
+
 	if expr.Operator == sqlparser.NotBetweenStr {
 		input = &eval.Not{Input: input}
 	}
@@ -676,10 +677,12 @@ func (p *Planner) planFuncExpr(expr *sqlparser.FuncExpr) (eval.Expr, error) {
 			return nil, driver.ErrSkip
 		}
 	}
+
 	input := eval.Expr(&eval.Paren{Exprs: exprs})
 	if expr.Distinct {
 		input = &eval.Distinct{Input: input}
 	}
+
 	return &eval.Func{
 		Dispatcher: p.dispatcher,
 		Qualifier:  expr.Qualifier,
@@ -768,10 +771,12 @@ func (p *Planner) planMatchExpr(expr *sqlparser.MatchExpr) (eval.Expr, error) {
 			return nil, driver.ErrSkip
 		}
 	}
+
 	right, err := p.planExpr(expr.Expr)
 	if err != nil {
 		return nil, err
 	}
+
 	return &eval.Match{
 		Left:  left,
 		Right: right,
@@ -796,7 +801,6 @@ func (p *Planner) planGroupConcatExpr(expr *sqlparser.GroupConcatExpr) (eval.Exp
 	}
 
 	input := eval.Expr(&eval.Paren{Exprs: exprs})
-
 	for _, order := range expr.OrderBy {
 		right, err := p.planExpr(order.Expr)
 		if err != nil {
@@ -808,7 +812,6 @@ func (p *Planner) planGroupConcatExpr(expr *sqlparser.GroupConcatExpr) (eval.Exp
 			Direction: order.Direction,
 		}
 	}
-
 	if expr.Distinct == sqlparser.DistinctStr {
 		input = &eval.Distinct{Input: input}
 	}
