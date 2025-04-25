@@ -65,7 +65,7 @@ func TestDistinct_Run(t *testing.T) {
 			plan: &Distinct{
 				Input: &Projection{
 					Input: &Scan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
-					Items: []ProjectionItem{&AliasItem{Expr: &eval.Column{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("name")}}, As: sqlparser.NewColIdent("name")}},
+					Items: []ProjectionItem{&AliasItem{Expr: &eval.Index{Left: &eval.Column{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("name")}}, Right: &eval.Literal{Value: sqltypes.NewInt64(0)}}, As: sqlparser.NewColIdent("name")}},
 				},
 			},
 			cursor: schema.NewInMemoryCursor([]schema.Row{

@@ -173,7 +173,7 @@ func (p *Planner) planJoinTableExpr(node *sqlparser.JoinTableExpr) (Plan, error)
 		}
 	}
 	for _, u := range node.Condition.Using {
-		e := &eval.Using{Value: u}
+		e := &eval.Uniform{Input: &eval.Column{Value: &sqlparser.ColName{Name: u}}}
 		if plan.Expr != nil {
 			plan.Expr = &eval.And{Left: plan.Expr, Right: e}
 		} else {
@@ -251,11 +251,15 @@ func (p *Planner) planSelectExprs(input Plan, node sqlparser.SelectExprs) (Plan,
 				}
 				as := e.As
 				if as.IsEmpty() {
+					as = sqlparser.NewColIdent(sqlparser.String(e.Expr))
 					switch expr := expr.(type) {
+					case *eval.Index:
+						if left, ok := expr.Left.(*eval.Column); ok {
+							as = left.Value.Name
+						}
 					case *eval.Column:
 						as = expr.Value.Name
 					default:
-						as = sqlparser.NewColIdent(sqlparser.String(e.Expr))
 					}
 				}
 				items = append(items, &AliasItem{Expr: expr, As: as})
@@ -428,11 +432,11 @@ func (p *Planner) planComparisonExpr(expr *sqlparser.ComparisonExpr) (eval.Expr,
 	case sqlparser.LessThanStr:
 		return &eval.LessThan{Left: left, Right: right}, nil
 	case sqlparser.LessEqualStr:
-		return &eval.LessThanEqual{Left: left, Right: right}, nil
+		return &eval.LessThanOrEqual{Left: left, Right: right}, nil
 	case sqlparser.GreaterThanStr:
 		return &eval.GreaterThan{Left: left, Right: right}, nil
 	case sqlparser.GreaterEqualStr:
-		return &eval.GreaterThanEqual{Left: left, Right: right}, nil
+		return &eval.GreaterThanOrEqual{Left: left, Right: right}, nil
 	case sqlparser.InStr:
 		return &eval.In{Left: left, Right: right}, nil
 	case sqlparser.NotInStr:
@@ -469,11 +473,11 @@ func (p *Planner) planRangeCond(expr *sqlparser.RangeCond) (eval.Expr, error) {
 	}
 
 	input := eval.Expr(&eval.And{
-		Left: &eval.GreaterThanEqual{
+		Left: &eval.GreaterThanOrEqual{
 			Left:  left,
 			Right: from,
 		},
-		Right: &eval.LessThanEqual{
+		Right: &eval.LessThanOrEqual{
 			Left:  left,
 			Right: to,
 		},
@@ -493,13 +497,29 @@ func (p *Planner) planIsExpr(expr *sqlparser.IsExpr) (eval.Expr, error) {
 
 	switch expr.Operator {
 	case sqlparser.IsNullStr:
-		return &eval.IsNull{Input: input}, nil
+		return &eval.Call{
+			Dispatcher: p.dispatcher,
+			Name:       eval.NVL2,
+			Input:      &eval.Paren{Exprs: []eval.Expr{input, &eval.Literal{Value: sqltypes.NewInt64(1)}, &eval.Literal{Value: sqltypes.NewInt64(0)}}},
+		}, nil
 	case sqlparser.IsNotNullStr:
-		return &eval.Not{Input: &eval.IsNull{Input: input}}, nil
+		return &eval.Call{
+			Dispatcher: p.dispatcher,
+			Name:       eval.NVL2,
+			Input:      &eval.Paren{Exprs: []eval.Expr{input, &eval.Literal{Value: sqltypes.NewInt64(0)}, &eval.Literal{Value: sqltypes.NewInt64(1)}}},
+		}, nil
 	case sqlparser.IsTrueStr:
-		return &eval.IsTrue{Input: input}, nil
+		return &eval.If{
+			When: input,
+			Then: &eval.Literal{Value: sqltypes.NewInt64(1)},
+			Else: &eval.Literal{Value: sqltypes.NewInt64(0)},
+		}, nil
 	case sqlparser.IsFalseStr:
-		return &eval.Not{Input: &eval.IsTrue{Input: input}}, nil
+		return &eval.If{
+			When: input,
+			Then: &eval.Literal{Value: sqltypes.NewInt64(0)},
+			Else: &eval.Literal{Value: sqltypes.NewInt64(1)},
+		}, nil
 	default:
 		return nil, driver.ErrSkip
 	}
@@ -510,7 +530,11 @@ func (p *Planner) planExistsExpr(expr *sqlparser.ExistsExpr) (eval.Expr, error) 
 	if err != nil {
 		return nil, err
 	}
-	return &eval.Exists{Input: input}, nil
+	return &eval.If{
+		When: input,
+		Then: &eval.Literal{Value: sqltypes.NewInt64(1)},
+		Else: &eval.Literal{Value: sqltypes.NewInt64(0)},
+	}, nil
 }
 
 func (p *Planner) planSQLVal(expr *sqlparser.SQLVal) (eval.Expr, error) {
@@ -548,7 +572,7 @@ func (p *Planner) planSQLVal(expr *sqlparser.SQLVal) (eval.Expr, error) {
 			return &eval.Literal{Value: val}, nil
 		}
 	case sqlparser.ValArg:
-		return &eval.Resolve{Value: string(expr.Val)}, nil
+		return &eval.ValArg{Value: string(expr.Val)}, nil
 	case sqlparser.BitVal:
 		if data, ok := new(big.Int).SetString(string(expr.Val), 2); !ok {
 			return nil, fmt.Errorf("invalid bit string '%s'", expr.Val)
@@ -574,7 +598,7 @@ func (p *Planner) planBoolVal(expr sqlparser.BoolVal) (eval.Expr, error) {
 }
 
 func (p *Planner) planColName(expr *sqlparser.ColName) (eval.Expr, error) {
-	return &eval.Column{Value: expr}, nil
+	return &eval.Index{Left: &eval.Column{Value: expr}, Right: &eval.Literal{Value: sqltypes.NewInt64(0)}}, nil
 }
 
 func (p *Planner) planValTuple(expr sqlparser.ValTuple) (eval.Expr, error) {
@@ -590,7 +614,7 @@ func (p *Planner) planValTuple(expr sqlparser.ValTuple) (eval.Expr, error) {
 }
 
 func (p *Planner) planListArg(expr sqlparser.ListArg) (eval.Expr, error) {
-	return &eval.Resolve{Value: string(expr)}, nil
+	return &eval.ValArg{Value: string(expr)}, nil
 }
 
 func (p *Planner) planBinaryExpr(expr *sqlparser.BinaryExpr) (eval.Expr, error) {
@@ -605,27 +629,39 @@ func (p *Planner) planBinaryExpr(expr *sqlparser.BinaryExpr) (eval.Expr, error) 
 
 	switch expr.Operator {
 	case sqlparser.PlusStr:
-		return &eval.Plus{Left: left, Right: right}, nil
+		return &eval.Add{Left: left, Right: right}, nil
 	case sqlparser.MinusStr:
-		return &eval.Minus{Left: left, Right: right}, nil
+		return &eval.Sub{Left: left, Right: right}, nil
 	case sqlparser.MultStr:
-		return &eval.Multiply{Left: left, Right: right}, nil
+		return &eval.Mul{Left: left, Right: right}, nil
 	case sqlparser.DivStr:
-		return &eval.Divide{Left: left, Right: right}, nil
+		return &eval.Div{Left: left, Right: right}, nil
 	case sqlparser.IntDivStr:
-		return &eval.Divide{Left: left, Right: right}, nil
+		return &eval.Div{Left: left, Right: right}, nil
 	case sqlparser.ModStr:
-		return &eval.Modulo{Left: left, Right: right}, nil
+		return &eval.Mod{Left: left, Right: right}, nil
 	case sqlparser.ShiftLeftStr:
 		return &eval.ShiftLeft{Left: left, Right: right}, nil
 	case sqlparser.ShiftRightStr:
 		return &eval.ShiftRight{Left: left, Right: right}, nil
 	case sqlparser.BitAndStr:
-		return &eval.BitAnd{Left: left, Right: right}, nil
+		return &eval.Call{
+			Dispatcher: p.dispatcher,
+			Name:       eval.BitAnd,
+			Input:      &eval.Paren{Exprs: []eval.Expr{left, right}},
+		}, nil
 	case sqlparser.BitOrStr:
-		return &eval.BitOr{Left: left, Right: right}, nil
+		return &eval.Call{
+			Dispatcher: p.dispatcher,
+			Name:       eval.BitOr,
+			Input:      &eval.Paren{Exprs: []eval.Expr{left, right}},
+		}, nil
 	case sqlparser.BitXorStr:
-		return &eval.BitXor{Left: left, Right: right}, nil
+		return &eval.Call{
+			Dispatcher: p.dispatcher,
+			Name:       eval.BitXor,
+			Input:      &eval.Paren{Exprs: []eval.Expr{left, right}},
+		}, nil
 	default:
 		return nil, driver.ErrSkip
 	}
@@ -639,9 +675,9 @@ func (p *Planner) planUnaryExpr(expr *sqlparser.UnaryExpr) (eval.Expr, error) {
 
 	switch expr.Operator {
 	case sqlparser.UPlusStr:
-		return input, nil
+		return &eval.Mul{Left: input, Right: &eval.Literal{Value: sqltypes.NewInt64(1)}}, nil
 	case sqlparser.UMinusStr:
-		return &eval.Multiply{Left: input, Right: &eval.Literal{Value: sqltypes.NewInt64(-1)}}, nil
+		return &eval.Mul{Left: input, Right: &eval.Literal{Value: sqltypes.NewInt64(-1)}}, nil
 	case sqlparser.TildaStr:
 		return &eval.BitNot{Input: input}, nil
 	case sqlparser.BangStr:
@@ -666,7 +702,7 @@ func (p *Planner) planFuncExpr(expr *sqlparser.FuncExpr) (eval.Expr, error) {
 	for _, expr := range expr.Exprs {
 		switch e := expr.(type) {
 		case *sqlparser.StarExpr:
-			exprs = append(exprs, &eval.Columns{Value: e.TableName})
+			exprs = append(exprs, &eval.Table{Value: e.TableName})
 		case *sqlparser.AliasedExpr:
 			expr, err := p.planExpr(e.Expr)
 			if err != nil {
@@ -678,12 +714,12 @@ func (p *Planner) planFuncExpr(expr *sqlparser.FuncExpr) (eval.Expr, error) {
 		}
 	}
 
-	input := eval.Expr(&eval.Paren{Exprs: exprs})
+	input := eval.Expr(&eval.Unpack{Exprs: exprs})
 	if expr.Distinct {
 		input = &eval.Distinct{Input: input}
 	}
 
-	return &eval.Func{
+	return &eval.Call{
 		Dispatcher: p.dispatcher,
 		Qualifier:  expr.Qualifier,
 		Name:       expr.Name,
@@ -721,7 +757,7 @@ func (p *Planner) planCaseExpr(expr *sqlparser.CaseExpr) (eval.Expr, error) {
 }
 
 func (p *Planner) planValuesFuncExpr(expr *sqlparser.ValuesFuncExpr) (eval.Expr, error) {
-	return &eval.Column{Value: expr.Name}, nil
+	return p.planExpr(expr.Name)
 }
 
 func (p *Planner) planConvertExpr(expr *sqlparser.ConvertExpr) (eval.Expr, error) {
@@ -748,9 +784,9 @@ func (p *Planner) planSubstrExpr(expr *sqlparser.SubstrExpr) (eval.Expr, error) 
 		}
 		exprs = append(exprs, to)
 	}
-	return &eval.Func{
+	return &eval.Call{
 		Dispatcher: p.dispatcher,
-		Name:       sqlparser.NewColIdent("substr"),
+		Name:       eval.Substr,
 		Input:      &eval.Paren{Exprs: exprs},
 	}, nil
 }
@@ -760,7 +796,7 @@ func (p *Planner) planMatchExpr(expr *sqlparser.MatchExpr) (eval.Expr, error) {
 	for _, expr := range expr.Columns {
 		switch e := expr.(type) {
 		case *sqlparser.StarExpr:
-			left = append(left, &eval.Columns{Value: e.TableName})
+			left = append(left, &eval.Table{Value: e.TableName})
 		case *sqlparser.AliasedExpr:
 			expr, err := p.planExpr(e.Expr)
 			if err != nil {
@@ -778,7 +814,7 @@ func (p *Planner) planMatchExpr(expr *sqlparser.MatchExpr) (eval.Expr, error) {
 	}
 
 	return &eval.Match{
-		Left:  left,
+		Left:  &eval.Unpack{Exprs: left},
 		Right: right,
 	}, nil
 }
@@ -788,7 +824,7 @@ func (p *Planner) planGroupConcatExpr(expr *sqlparser.GroupConcatExpr) (eval.Exp
 	for _, expr := range expr.Exprs {
 		switch e := expr.(type) {
 		case *sqlparser.StarExpr:
-			exprs = append(exprs, &eval.Columns{Value: e.TableName})
+			exprs = append(exprs, &eval.Table{Value: e.TableName})
 		case *sqlparser.AliasedExpr:
 			expr, err := p.planExpr(e.Expr)
 			if err != nil {
@@ -800,7 +836,7 @@ func (p *Planner) planGroupConcatExpr(expr *sqlparser.GroupConcatExpr) (eval.Exp
 		}
 	}
 
-	input := eval.Expr(&eval.Paren{Exprs: exprs})
+	input := eval.Expr(&eval.Unpack{Exprs: exprs})
 	for _, order := range expr.OrderBy {
 		right, err := p.planExpr(order.Expr)
 		if err != nil {
@@ -816,9 +852,10 @@ func (p *Planner) planGroupConcatExpr(expr *sqlparser.GroupConcatExpr) (eval.Exp
 		input = &eval.Distinct{Input: input}
 	}
 
-	return &eval.Concat{
-		Input:     input,
-		Separator: expr.Separator,
+	return &eval.Call{
+		Dispatcher: p.dispatcher,
+		Name:       eval.ConcatWs,
+		Input:      &eval.Unpack{Exprs: []eval.Expr{&eval.Literal{Value: sqltypes.NewVarChar(expr.Separator)}, input}},
 	}, nil
 }
 

@@ -76,7 +76,7 @@ func (p *Projection) Run(ctx context.Context, binds map[string]*querypb.BindVari
 
 func (p *Projection) String() string {
 	var builder strings.Builder
-	builder.WriteString("Projection(")
+	builder.WriteString("Table(")
 	builder.WriteString(p.Input.String())
 	for _, term := range p.Items {
 		builder.WriteString(", ")

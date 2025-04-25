@@ -49,7 +49,7 @@ func TestFilter_Run(t *testing.T) {
 			plan: &Filter{
 				Input: &Scan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 				Expr: &eval.Equal{
-					Left:  &eval.Column{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}},
+					Left:  &eval.Index{Left: &eval.Column{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}}, Right: &eval.Literal{Value: sqltypes.NewInt64(0)}},
 					Right: &eval.Literal{Value: sqltypes.NewInt64(0)},
 				},
 			},

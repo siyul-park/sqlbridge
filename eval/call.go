@@ -9,7 +9,7 @@ import (
 	"github.com/xwb1989/sqlparser/dependency/querypb"
 )
 
-type Func struct {
+type Call struct {
 	Dispatcher *Dispatcher
 	Qualifier  sqlparser.TableIdent
 	Name       sqlparser.ColIdent
@@ -17,9 +17,9 @@ type Func struct {
 	Aggregate  bool
 }
 
-var _ Expr = (*Func)(nil)
+var _ Expr = (*Call)(nil)
 
-func (e *Func) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
+func (e *Call) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
 	name := e.Name.String()
 	if !e.Qualifier.IsEmpty() {
 		name = fmt.Sprintf("%s.%s", e.Qualifier.String(), name)
@@ -48,10 +48,10 @@ func (e *Func) Eval(ctx context.Context, row schema.Row, binds map[string]*query
 	return e.Dispatcher.Dispatch(name, args)
 }
 
-func (e *Func) String() string {
+func (e *Call) String() string {
 	name := e.Name.String()
 	if !e.Qualifier.IsEmpty() {
 		name = fmt.Sprintf("%s.%s", e.Qualifier.String(), name)
 	}
-	return fmt.Sprintf("Func(%s, %s)", name, e.Input.String())
+	return fmt.Sprintf("Call(%s, %s)", name, e.Input.String())
 }

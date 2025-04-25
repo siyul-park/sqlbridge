@@ -2,76 +2,56 @@ package eval
 
 import (
 	"errors"
+	"fmt"
 	"math"
+	"strings"
+
+	"github.com/xwb1989/sqlparser"
+)
+
+var (
+	BitAnd     = sqlparser.NewColIdent("bit_and")
+	BitOr      = sqlparser.NewColIdent("bit_or")
+	BitXor     = sqlparser.NewColIdent("bit_xor")
+	Substr     = sqlparser.NewColIdent("substr")
+	ConcatWs   = sqlparser.NewColIdent("concat_ws")
+	NVL        = sqlparser.NewColIdent("nvl")
+	NVL2       = sqlparser.NewColIdent("nvl2")
+	Count      = sqlparser.NewColIdent("count")
+	Avg        = sqlparser.NewColIdent("avg")
+	Max        = sqlparser.NewColIdent("max")
+	Min        = sqlparser.NewColIdent("min")
+	Sum        = sqlparser.NewColIdent("sum")
+	Std        = sqlparser.NewColIdent("std")
+	Stddev     = sqlparser.NewColIdent("stddev")
+	StddevSamp = sqlparser.NewColIdent("stddev_samp")
+	StddevPop  = sqlparser.NewColIdent("stddev_pop")
+	Variance   = sqlparser.NewColIdent("variance")
+	VarSamp    = sqlparser.NewColIdent("var_samp")
+	VarPop     = sqlparser.NewColIdent("var_pop")
 )
 
 func WithBuiltIn() Option {
 	return func(d *Dispatcher) {
-		d.fns["substr"] = NewSubstr()
-		d.fns["group_concat"] = NewGroupConcat()
-		d.fns["bit_and"] = NewBitAnd()
-		d.fns["bit_or"] = NewBitOr()
-		d.fns["bit_xor"] = NewBitXor()
-		d.fns["count"] = NewCount()
-		d.fns["avg"] = NewAvg()
-		d.fns["max"] = NewMax()
-		d.fns["min"] = NewMin()
-		d.fns["std"] = NewStdDevSamp()
-		d.fns["stddev"] = NewStdDevSamp()
-		d.fns["stddev_samp"] = NewStdDevSamp()
-		d.fns["stddev_pop"] = NewStddevPop()
-		d.fns["variance"] = NewVarSamp()
-		d.fns["var_samp"] = NewVarSamp()
-		d.fns["var_pop"] = NewVarPop()
-	}
-}
-
-func NewSubstr() Function {
-	return func(args []Value) (Value, error) {
-		if len(args) == 0 {
-			return NewString(""), nil
-		}
-
-		str, err := ToString(args[0])
-		if err != nil {
-			return nil, err
-		}
-
-		offset, length := int64(0), int64(len(str))
-		if len(args) > 1 {
-			if offset, err = ToInt(args[1]); err != nil {
-				return nil, err
-			}
-		}
-		if len(args) > 2 {
-			if length, err = ToInt(args[2]); err != nil {
-				return nil, err
-			}
-		}
-
-		offset = (offset + int64(len(str))) % int64(len(str))
-		if offset < 0 {
-			offset += int64(len(str))
-		}
-		length = max(0, length)
-		if offset+length > int64(len(str)) {
-			length = int64(len(str)) - offset
-		}
-		return NewString(str[offset : offset+length]), nil
-	}
-}
-
-func NewGroupConcat() Function {
-	return func(args []Value) (Value, error) {
-		var value string
-		for _, arg := range args {
-			str, err := ToString(arg)
-			if err != nil {
-				return nil, err
-			}
-			value += str
-		}
-		return NewString(value), nil
+		d.fns[BitAnd.String()] = NewBitAnd()
+		d.fns[BitOr.String()] = NewBitOr()
+		d.fns[BitXor.String()] = NewBitXor()
+		d.fns[Substr.String()] = NewSubstr()
+		d.fns[ConcatWs.String()] = NewConcatWs()
+		d.fns[NVL.String()] = NewNVL()
+		d.fns[NVL2.String()] = NewNVL2()
+		d.fns[Count.String()] = NewCount()
+		d.fns[Avg.String()] = NewAvg()
+		d.fns[Max.String()] = NewMax()
+		d.fns[Min.String()] = NewMin()
+		d.fns[Sum.String()] = NewSum()
+		d.fns[Std.String()] = NewStdDevSamp()
+		d.fns[Stddev.String()] = NewStdDevSamp()
+		d.fns[StddevSamp.String()] = NewStdDevSamp()
+		d.fns[StddevPop.String()] = NewStddevPop()
+		d.fns[Variance.String()] = NewVarSamp()
+		d.fns[VarSamp.String()] = NewVarSamp()
+		d.fns[VarPop.String()] = NewVarPop()
 	}
 }
 
@@ -127,6 +107,82 @@ func NewBitXor() Function {
 		}
 		return NewUint64(value), nil
 	}
+}
+
+func NewSubstr() Function {
+	return func(args []Value) (Value, error) {
+		if len(args) == 0 {
+			return NewString(""), nil
+		}
+
+		str, err := ToString(args[0])
+		if err != nil {
+			return nil, err
+		}
+
+		offset, length := int64(0), int64(len(str))
+		if len(args) > 1 {
+			if offset, err = ToInt(args[1]); err != nil {
+				return nil, err
+			}
+		}
+		if len(args) > 2 {
+			if length, err = ToInt(args[2]); err != nil {
+				return nil, err
+			}
+		}
+
+		offset = (offset + int64(len(str))) % int64(len(str))
+		if offset < 0 {
+			offset += int64(len(str))
+		}
+		length = max(0, length)
+		if offset+length > int64(len(str)) {
+			length = int64(len(str)) - offset
+		}
+		return NewString(str[offset : offset+length]), nil
+	}
+}
+
+func NewConcatWs() Function {
+	return func(args []Value) (Value, error) {
+		if len(args) == 0 {
+			return NewString(""), nil
+		}
+
+		sep, err := ToString(args[0])
+		if err != nil {
+			return nil, err
+		}
+
+		var elems []string
+		for _, arg := range args[1:] {
+			elem, err := ToString(arg)
+			if err != nil {
+				return nil, err
+			}
+			elems = append(elems, elem)
+		}
+		return NewString(strings.Join(elems, sep)), nil
+	}
+}
+
+func NewNVL() Function {
+	return NewBinary(func(lhs, rhs Value) (Value, error) {
+		if lhs == nil {
+			return rhs, nil
+		}
+		return lhs, nil
+	})
+}
+
+func NewNVL2() Function {
+	return NewTernary(func(x1, x2, x3 Value) (Value, error) {
+		if x1 != nil {
+			return x2, nil
+		}
+		return x3, nil
+	})
 }
 
 func NewCount() Function {
@@ -323,5 +379,23 @@ func NewVarSamp() Function {
 			sds += (val - mean) * (val - mean)
 		}
 		return NewFloat64(sds / float64(count-1)), nil
+	}
+}
+
+func NewTernary(fn func(a, b, c Value) (Value, error)) Function {
+	return func(args []Value) (Value, error) {
+		if len(args) != 3 {
+			return nil, fmt.Errorf("operator requires exactly 3 arguments")
+		}
+		return fn(args[0], args[1], args[2])
+	}
+}
+
+func NewBinary(fn func(lhs, rhs Value) (Value, error)) Function {
+	return func(args []Value) (Value, error) {
+		if len(args) != 2 {
+			return nil, fmt.Errorf("operator requires exactly 2 arguments")
+		}
+		return fn(args[0], args[1])
 	}
 }

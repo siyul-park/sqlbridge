@@ -70,7 +70,7 @@ func TestProjection_Run(t *testing.T) {
 					Input: &Scan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
 					As:    sqlparser.NewTableIdent("t1"),
 				},
-				Items: []ProjectionItem{&AliasItem{Expr: &eval.Column{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}}, As: sqlparser.NewColIdent("id")}},
+				Items: []ProjectionItem{&AliasItem{Expr: &eval.Index{Left: &eval.Column{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}}, Right: &eval.Literal{Value: sqltypes.NewInt64(0)}}, As: sqlparser.NewColIdent("id")}},
 			},
 			cursor: schema.NewInMemoryCursor([]schema.Row{
 				{
