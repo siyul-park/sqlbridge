@@ -8,7 +8,6 @@ import (
 
 	"github.com/siyul-park/sqlbridge/plan"
 	"github.com/siyul-park/sqlbridge/schema"
-	"github.com/xwb1989/sqlparser"
 	"github.com/xwb1989/sqlparser/dependency/querypb"
 	"github.com/xwb1989/sqlparser/dependency/sqltypes"
 )
@@ -74,10 +73,9 @@ func (s *statement) QueryContext(ctx context.Context, args []driver.NamedValue) 
 	for _, row := range records {
 		idx := map[string]int{}
 		for i, col := range row.Columns {
-			key := sqlparser.String(col)
-			idx[key] = i
-			if !slices.Contains(columns, key) {
-				columns = append(columns, key)
+			idx[col.Name.String()] = i
+			if !slices.Contains(columns, col.Name.String()) {
+				columns = append(columns, col.Name.String())
 			}
 		}
 
