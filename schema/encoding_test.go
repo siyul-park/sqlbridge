@@ -1,0 +1,52 @@
+package schema
+
+import (
+	"fmt"
+	"github.com/stretchr/testify/require"
+	"github.com/xwb1989/sqlparser/dependency/sqltypes"
+	"testing"
+)
+
+func TestMarshal(t *testing.T) {
+	tests := []struct {
+		value    any
+		expected sqltypes.Value
+	}{
+		{
+			value:    nil,
+			expected: sqltypes.NULL,
+		},
+		{
+			value:    int64(123),
+			expected: sqltypes.NewInt64(123),
+		},
+		{
+			value:    uint64(456),
+			expected: sqltypes.NewUint64(456),
+		},
+		{
+			value:    3.14,
+			expected: sqltypes.NewFloat64(3.14),
+		},
+		{
+			value:    "test",
+			expected: sqltypes.NewVarChar("test"),
+		},
+		{
+			value:    []byte{1, 2, 3},
+			expected: sqltypes.MakeTrusted(sqltypes.VarBinary, []byte{1, 2, 3}),
+		},
+		{
+			value:    map[string]interface{}{"key": "value"},
+			expected: sqltypes.MakeTrusted(sqltypes.TypeJSON, []byte(`{"key":"value"}`)),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprint(tt.value), func(t *testing.T) {
+			result, err := Marshal(tt.value)
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
