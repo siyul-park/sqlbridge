@@ -95,7 +95,7 @@ func (c *connection) PrepareContext(ctx context.Context, query string) (driver.S
 }
 
 func (c *connection) BeginTx(_ context.Context, _ driver.TxOptions) (driver.Tx, error) {
-	return nil, driver.ErrSkip
+	return &transaction{}, nil
 }
 
 func (c *connection) Close() error {
