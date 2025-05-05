@@ -21,9 +21,16 @@ func (r *rows) Next(dest []driver.Value) error {
 	if r.offset >= len(r.values) {
 		return io.EOF
 	}
+
 	row := r.values[r.offset]
-	copy(dest, row[:len(dest)])
 	r.offset++
+
+	n := len(dest)
+	if len(row) < n {
+		n = len(row)
+	}
+
+	copy(dest, row[:n])
 	return nil
 }
 

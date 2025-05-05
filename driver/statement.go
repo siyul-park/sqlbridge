@@ -74,9 +74,10 @@ func (s *statement) QueryContext(ctx context.Context, args []driver.NamedValue) 
 	for _, row := range records {
 		idx := map[string]int{}
 		for i, col := range row.Columns {
-			idx[sqlparser.String(col)] = i
-			if !slices.Contains(columns, sqlparser.String(col)) {
-				columns = append(columns, sqlparser.String(col))
+			key := sqlparser.String(col)
+			idx[key] = i
+			if !slices.Contains(columns, key) {
+				columns = append(columns, key)
 			}
 		}
 
