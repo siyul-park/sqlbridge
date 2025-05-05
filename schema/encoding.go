@@ -25,11 +25,11 @@ func Marshal(value any) (sqltypes.Value, error) {
 			return sqltypes.NULL, err
 		}
 		return sqltypes.MakeTrusted(sqltypes.TypeJSON, d), nil
-	case reflect.Int64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return sqltypes.NewInt64(v.Int()), nil
-	case reflect.Uint64:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return sqltypes.NewUint64(v.Uint()), nil
-	case reflect.Float64:
+	case reflect.Float32, reflect.Float64:
 		return sqltypes.NewFloat64(v.Float()), nil
 	case reflect.String:
 		return sqltypes.NewVarChar(v.String()), nil
