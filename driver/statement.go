@@ -86,7 +86,11 @@ func (s *statement) QueryContext(ctx context.Context, args []driver.NamedValue) 
 			if i, ok := idx[col]; !ok {
 				vals = append(vals, nil)
 			} else {
-				vals = append(vals, row.Values[i])
+				val, err := schema.Unmarshal(row.Values[i])
+				if err != nil {
+					return nil, err
+				}
+				vals = append(vals, val)
 			}
 		}
 		values = append(values, vals)

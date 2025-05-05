@@ -3,6 +3,7 @@ package schema
 import (
 	"encoding/json"
 	"reflect"
+	"strconv"
 
 	"github.com/xwb1989/sqlparser/dependency/sqltypes"
 )
@@ -40,5 +41,33 @@ func Marshal(value any) (sqltypes.Value, error) {
 			return sqltypes.NULL, err
 		}
 		return sqltypes.MakeTrusted(sqltypes.TypeJSON, d), nil
+	}
+}
+
+// Unmarshal converts sqltypes.Value into a Go value of type any.
+func Unmarshal(value sqltypes.Value) (any, error) {
+	if value.IsNull() {
+		return nil, nil
+	}
+
+	switch value.Type() {
+	case sqltypes.Int8, sqltypes.Int16, sqltypes.Int24, sqltypes.Int32, sqltypes.Int64:
+		return strconv.ParseInt(string(value.Raw()), 10, 64)
+	case sqltypes.Uint8, sqltypes.Uint16, sqltypes.Uint24, sqltypes.Uint32, sqltypes.Uint64:
+		return strconv.ParseUint(string(value.Raw()), 10, 64)
+	case sqltypes.Float32, sqltypes.Float64, sqltypes.Decimal:
+		return strconv.ParseFloat(string(value.Raw()), 64)
+	case sqltypes.VarChar, sqltypes.Text, sqltypes.Char:
+		return value.ToString(), nil
+	case sqltypes.TypeJSON:
+		var v any
+		if err := json.Unmarshal(value.Raw(), &v); err != nil {
+			return nil, err
+		}
+		return v, nil
+	case sqltypes.Blob, sqltypes.VarBinary:
+		return value.Raw(), nil
+	default:
+		return value.ToString(), nil
 	}
 }

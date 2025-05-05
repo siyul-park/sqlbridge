@@ -50,3 +50,47 @@ func TestMarshal(t *testing.T) {
 		})
 	}
 }
+
+func TestUnmarshal(t *testing.T) {
+	tests := []struct {
+		value    sqltypes.Value
+		expected any
+	}{
+		{
+			value:    sqltypes.NULL,
+			expected: nil,
+		},
+		{
+			value:    sqltypes.NewInt64(123),
+			expected: int64(123),
+		},
+		{
+			value:    sqltypes.NewUint64(456),
+			expected: uint64(456),
+		},
+		{
+			value:    sqltypes.NewFloat64(3.14),
+			expected: 3.14,
+		},
+		{
+			value:    sqltypes.NewVarChar("hello"),
+			expected: "hello",
+		},
+		{
+			value:    sqltypes.MakeTrusted(sqltypes.VarBinary, []byte{0x01, 0x02}),
+			expected: []byte{0x01, 0x02},
+		},
+		{
+			value:    sqltypes.MakeTrusted(sqltypes.TypeJSON, []byte(`{"x":1}`)),
+			expected: map[string]any{"x": float64(1)},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.value.String(), func(t *testing.T) {
+			result, err := Unmarshal(tt.value)
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
