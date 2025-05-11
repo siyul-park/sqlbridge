@@ -2,9 +2,10 @@ package schema
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"github.com/xwb1989/sqlparser/dependency/sqltypes"
-	"testing"
 )
 
 func TestMarshal(t *testing.T) {

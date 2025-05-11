@@ -1,8 +1,9 @@
 package driver
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestTransaction_Commit(t *testing.T) {
