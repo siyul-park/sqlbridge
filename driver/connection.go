@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/siyul-park/sqlbridge/plan"
+	"github.com/siyul-park/sqlbridge/engine"
 	"github.com/xwb1989/sqlparser"
 )
 
 type connection struct {
-	planner *plan.Planner
+	planner *engine.Planner
 }
 
 var _ driver.Conn = (*connection)(nil)

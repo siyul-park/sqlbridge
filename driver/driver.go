@@ -3,14 +3,13 @@ package driver
 import (
 	"database/sql/driver"
 
-	"github.com/siyul-park/sqlbridge/eval"
-	"github.com/siyul-park/sqlbridge/plan"
+	"github.com/siyul-park/sqlbridge/engine"
 	"github.com/siyul-park/sqlbridge/schema"
 )
 
 type Driver struct {
 	registry   schema.Registry
-	dispatcher *eval.Dispatcher
+	dispatcher *engine.Dispatcher
 }
 
 type Option func(*Driver)
@@ -22,14 +21,14 @@ func WithRegistry(registry schema.Registry) Option {
 	return func(d *Driver) { d.registry = registry }
 }
 
-func WithDispatcher(dispatcher *eval.Dispatcher) Option {
+func WithDispatcher(dispatcher *engine.Dispatcher) Option {
 	return func(d *Driver) { d.dispatcher = dispatcher }
 }
 
 func New(opts ...Option) *Driver {
 	d := &Driver{
 		registry:   schema.NewInMemoryRegistry(nil),
-		dispatcher: eval.NewDispatcher(eval.WithBuiltIn()),
+		dispatcher: engine.NewDispatcher(engine.WithBuiltIn()),
 	}
 	for _, opt := range opts {
 		opt(d)
@@ -42,7 +41,7 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &connection{planner: plan.NewPlanner(catalog, d.dispatcher)}, nil
+	return &connection{planner: engine.NewPlanner(catalog, d.dispatcher)}, nil
 }
 
 func (d *Driver) OpenConnector(name string) (driver.Connector, error) {

@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/siyul-park/sqlbridge/plan"
+	"github.com/siyul-park/sqlbridge/engine"
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser/dependency/querypb"
 	"github.com/xwb1989/sqlparser/dependency/sqltypes"
 )
 
 type statement struct {
-	plan  plan.Plan
+	plan  engine.Plan
 	binds map[string]struct{}
 }
 
