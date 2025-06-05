@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/siyul-park/sqlbridge/schema"
 	"github.com/xwb1989/sqlparser/dependency/querypb"
@@ -103,5 +104,15 @@ func (e *IfExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*que
 }
 
 func (e *IfExpr) String() string {
-	return fmt.Sprintf("If(%s, %s, %s)", e.When.String(), e.Then.String(), e.Else.String())
+	var b strings.Builder
+	b.WriteString("If(")
+	b.WriteString(e.When.String())
+	b.WriteString(", ")
+	b.WriteString(e.Then.String())
+	if e.Else != nil {
+		b.WriteString(", ")
+		b.WriteString(e.Else.String())
+	}
+	b.WriteString(")")
+	return b.String()
 }

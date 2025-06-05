@@ -172,7 +172,7 @@ func (p *Planner) planJoinTableExpr(node *sqlparser.JoinTableExpr) (Plan, error)
 		}
 	}
 	for _, u := range node.Condition.Using {
-		e := &UniformExpr{Input: &ColumnExpr{Value: &sqlparser.ColName{Name: u}}}
+		e := &IdenticalExpr{Input: &ColumnExpr{Value: &sqlparser.ColName{Name: u}}}
 		if plan.Expr != nil {
 			plan.Expr = &AndExpr{Left: plan.Expr, Right: e}
 		} else {
@@ -499,13 +499,13 @@ func (p *Planner) planIsExpr(expr *sqlparser.IsExpr) (Expr, error) {
 		return &CallExpr{
 			Dispatcher: p.dispatcher,
 			Name:       NVL2,
-			Input:      &ParenExpr{Exprs: []Expr{input, &LiteralExpr{Value: sqltypes.NewInt64(1)}, &LiteralExpr{Value: sqltypes.NewInt64(0)}}},
+			Input:      &TupleExpr{Exprs: []Expr{input, &LiteralExpr{Value: sqltypes.NewInt64(1)}, &LiteralExpr{Value: sqltypes.NewInt64(0)}}},
 		}, nil
 	case sqlparser.IsNotNullStr:
 		return &CallExpr{
 			Dispatcher: p.dispatcher,
 			Name:       NVL2,
-			Input:      &ParenExpr{Exprs: []Expr{input, &LiteralExpr{Value: sqltypes.NewInt64(0)}, &LiteralExpr{Value: sqltypes.NewInt64(1)}}},
+			Input:      &TupleExpr{Exprs: []Expr{input, &LiteralExpr{Value: sqltypes.NewInt64(0)}, &LiteralExpr{Value: sqltypes.NewInt64(1)}}},
 		}, nil
 	case sqlparser.IsTrueStr:
 		return &IfExpr{
@@ -609,7 +609,7 @@ func (p *Planner) planValTuple(expr sqlparser.ValTuple) (Expr, error) {
 		}
 		exprs = append(exprs, elem)
 	}
-	return &ParenExpr{Exprs: exprs}, nil
+	return &TupleExpr{Exprs: exprs}, nil
 }
 
 func (p *Planner) planListArg(expr sqlparser.ListArg) (Expr, error) {
@@ -647,19 +647,19 @@ func (p *Planner) planBinaryExpr(expr *sqlparser.BinaryExpr) (Expr, error) {
 		return &CallExpr{
 			Dispatcher: p.dispatcher,
 			Name:       BitAnd,
-			Input:      &ParenExpr{Exprs: []Expr{left, right}},
+			Input:      &TupleExpr{Exprs: []Expr{left, right}},
 		}, nil
 	case sqlparser.BitOrStr:
 		return &CallExpr{
 			Dispatcher: p.dispatcher,
 			Name:       BitOr,
-			Input:      &ParenExpr{Exprs: []Expr{left, right}},
+			Input:      &TupleExpr{Exprs: []Expr{left, right}},
 		}, nil
 	case sqlparser.BitXorStr:
 		return &CallExpr{
 			Dispatcher: p.dispatcher,
 			Name:       BitXor,
-			Input:      &ParenExpr{Exprs: []Expr{left, right}},
+			Input:      &TupleExpr{Exprs: []Expr{left, right}},
 		}, nil
 	default:
 		return nil, driver.ErrSkip
@@ -713,7 +713,7 @@ func (p *Planner) planFuncExpr(expr *sqlparser.FuncExpr) (Expr, error) {
 		}
 	}
 
-	input := Expr(&UnpackExpr{Exprs: exprs})
+	input := Expr(&SpreadExpr{Exprs: exprs})
 	if expr.Distinct {
 		input = &DistinctExpr{Input: input}
 	}
@@ -786,7 +786,7 @@ func (p *Planner) planSubstrExpr(expr *sqlparser.SubstrExpr) (Expr, error) {
 	return &CallExpr{
 		Dispatcher: p.dispatcher,
 		Name:       Substr,
-		Input:      &ParenExpr{Exprs: exprs},
+		Input:      &TupleExpr{Exprs: exprs},
 	}, nil
 }
 
@@ -813,7 +813,7 @@ func (p *Planner) planMatchExpr(expr *sqlparser.MatchExpr) (Expr, error) {
 	}
 
 	return &MatchExpr{
-		Left:  &UnpackExpr{Exprs: left},
+		Left:  &SpreadExpr{Exprs: left},
 		Right: right,
 	}, nil
 }
@@ -835,7 +835,7 @@ func (p *Planner) planGroupConcatExpr(expr *sqlparser.GroupConcatExpr) (Expr, er
 		}
 	}
 
-	input := Expr(&UnpackExpr{Exprs: exprs})
+	input := Expr(&SpreadExpr{Exprs: exprs})
 	for _, order := range expr.OrderBy {
 		right, err := p.planExpr(order.Expr)
 		if err != nil {
@@ -854,7 +854,7 @@ func (p *Planner) planGroupConcatExpr(expr *sqlparser.GroupConcatExpr) (Expr, er
 	return &CallExpr{
 		Dispatcher: p.dispatcher,
 		Name:       ConcatWs,
-		Input:      &UnpackExpr{Exprs: []Expr{&LiteralExpr{Value: sqltypes.NewVarChar(expr.Separator)}, input}},
+		Input:      &SpreadExpr{Exprs: []Expr{&LiteralExpr{Value: sqltypes.NewVarChar(expr.Separator)}, input}},
 	}, nil
 }
 

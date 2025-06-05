@@ -69,17 +69,17 @@ func (c *connection) PrepareContext(ctx context.Context, query string) (driver.S
 		return nil, ctx.Err()
 	default:
 		var idx int
-		var buf strings.Builder
+		var b strings.Builder
 		for i := 0; i < len(query); i++ {
 			if query[i] == '?' {
 				idx++
-				buf.WriteString(fmt.Sprintf(":v%d", idx))
+				b.WriteString(fmt.Sprintf(":v%d", idx))
 			} else {
-				buf.WriteByte(query[i])
+				b.WriteByte(query[i])
 			}
 		}
 
-		stmt, err := sqlparser.Parse(buf.String())
+		stmt, err := sqlparser.Parse(b.String())
 		if err != nil {
 			return nil, err
 		}

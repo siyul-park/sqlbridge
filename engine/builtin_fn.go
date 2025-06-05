@@ -2,7 +2,6 @@ package engine
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"strings"
 
@@ -112,7 +111,7 @@ func NewBitXor() Function {
 func NewSubstr() Function {
 	return func(args []Value) (Value, error) {
 		if len(args) == 0 {
-			return NewString(""), nil
+			return NewVarChar(""), nil
 		}
 
 		str, err := ToString(args[0])
@@ -140,14 +139,14 @@ func NewSubstr() Function {
 		if offset+length > int64(len(str)) {
 			length = int64(len(str)) - offset
 		}
-		return NewString(str[offset : offset+length]), nil
+		return NewVarChar(str[offset : offset+length]), nil
 	}
 }
 
 func NewConcatWs() Function {
 	return func(args []Value) (Value, error) {
 		if len(args) == 0 {
-			return NewString(""), nil
+			return NewVarChar(""), nil
 		}
 
 		sep, err := ToString(args[0])
@@ -163,12 +162,12 @@ func NewConcatWs() Function {
 			}
 			elems = append(elems, elem)
 		}
-		return NewString(strings.Join(elems, sep)), nil
+		return NewVarChar(strings.Join(elems, sep)), nil
 	}
 }
 
 func NewNVL() Function {
-	return NewBinary(func(lhs, rhs Value) (Value, error) {
+	return NewBinaryFunction(func(lhs, rhs Value) (Value, error) {
 		if lhs == nil {
 			return rhs, nil
 		}
@@ -177,7 +176,7 @@ func NewNVL() Function {
 }
 
 func NewNVL2() Function {
-	return NewTernary(func(x1, x2, x3 Value) (Value, error) {
+	return NewTernaryFunction(func(x1, x2, x3 Value) (Value, error) {
 		if x1 != nil {
 			return x2, nil
 		}
@@ -379,23 +378,5 @@ func NewVarSamp() Function {
 			sds += (val - mean) * (val - mean)
 		}
 		return NewFloat64(sds / float64(count-1)), nil
-	}
-}
-
-func NewTernary(fn func(a, b, c Value) (Value, error)) Function {
-	return func(args []Value) (Value, error) {
-		if len(args) != 3 {
-			return nil, fmt.Errorf("operator requires exactly 3 arguments")
-		}
-		return fn(args[0], args[1], args[2])
-	}
-}
-
-func NewBinary(fn func(lhs, rhs Value) (Value, error)) Function {
-	return func(args []Value) (Value, error) {
-		if len(args) != 2 {
-			return nil, fmt.Errorf("operator requires exactly 2 arguments")
-		}
-		return fn(args[0], args[1])
 	}
 }

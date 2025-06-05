@@ -9,13 +9,13 @@ import (
 	"github.com/xwb1989/sqlparser/dependency/querypb"
 )
 
-type ParenExpr struct {
+type TupleExpr struct {
 	Exprs []Expr
 }
 
-var _ Expr = (*ParenExpr)(nil)
+var _ Expr = (*TupleExpr)(nil)
 
-func (e *ParenExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
+func (e *TupleExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
 	var vals []Value
 	for _, elem := range e.Exprs {
 		val, err := elem.Eval(ctx, row, binds)
@@ -30,21 +30,21 @@ func (e *ParenExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*
 	return NewTuple(vals), nil
 }
 
-func (e *ParenExpr) String() string {
+func (e *TupleExpr) String() string {
 	parts := make([]string, len(e.Exprs))
 	for i, e := range e.Exprs {
 		parts[i] = e.String()
 	}
-	return fmt.Sprintf("Paren(%s)", strings.Join(parts, ", "))
+	return fmt.Sprintf("Tuple(%s)", strings.Join(parts, ", "))
 }
 
-type UnpackExpr struct {
+type SpreadExpr struct {
 	Exprs []Expr
 }
 
-var _ Expr = (*UnpackExpr)(nil)
+var _ Expr = (*SpreadExpr)(nil)
 
-func (e *UnpackExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
+func (e *SpreadExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
 	var vals []Value
 	for _, elem := range e.Exprs {
 		val, err := elem.Eval(ctx, row, binds)
@@ -64,12 +64,12 @@ func (e *UnpackExpr) Eval(ctx context.Context, row schema.Row, binds map[string]
 	return NewTuple(vals), nil
 }
 
-func (e *UnpackExpr) String() string {
+func (e *SpreadExpr) String() string {
 	parts := make([]string, len(e.Exprs))
 	for i, e := range e.Exprs {
 		parts[i] = e.String()
 	}
-	return fmt.Sprintf("Unpack(%s)", strings.Join(parts, ", "))
+	return fmt.Sprintf("Spread(%s)", strings.Join(parts, ", "))
 }
 
 type IndexExpr struct {

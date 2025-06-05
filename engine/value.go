@@ -21,10 +21,10 @@ type Value interface {
 type Int64 struct{ data int64 }
 type Uint64 struct{ data uint64 }
 type Float64 struct{ data float64 }
-type String struct{ data string }
-type Bytes struct{ data []byte }
+type VarChar struct{ data string }
+type VarBinary struct{ data []byte }
 type DateTime struct{ data time.Time }
-type Duration struct {
+type Interval struct {
 	amount int64
 	unit   string
 }
@@ -40,10 +40,10 @@ var (
 	_ Value = (*Int64)(nil)
 	_ Value = (*Uint64)(nil)
 	_ Value = (*Float64)(nil)
-	_ Value = (*String)(nil)
-	_ Value = (*Bytes)(nil)
+	_ Value = (*VarChar)(nil)
+	_ Value = (*VarBinary)(nil)
 	_ Value = (*DateTime)(nil)
-	_ Value = (*Duration)(nil)
+	_ Value = (*Interval)(nil)
 	_ Value = (*JSON)(nil)
 	_ Value = (*Tuple)(nil)
 )
@@ -92,16 +92,16 @@ func Compare(lhs, rhs Value) (int, error) {
 			return 1, nil
 		}
 		return 0, nil
-	case *String:
-		r, ok := rhs.(*String)
+	case *VarChar:
+		r, ok := rhs.(*VarChar)
 		if !ok {
-			return 0, fmt.Errorf("cannot compare String with %T", rhs)
+			return 0, fmt.Errorf("cannot compare VarChar with %T", rhs)
 		}
 		return strings.Compare(l.String(), r.String()), nil
-	case *Bytes:
-		r, ok := rhs.(*Bytes)
+	case *VarBinary:
+		r, ok := rhs.(*VarBinary)
 		if !ok {
-			return 0, fmt.Errorf("cannot compare Bytes with %T", rhs)
+			return 0, fmt.Errorf("cannot compare VarBinary with %T", rhs)
 		}
 		return bytes.Compare(l.Bytes(), r.Bytes()), nil
 	case *DateTime:
@@ -115,10 +115,10 @@ func Compare(lhs, rhs Value) (int, error) {
 			return 1, nil
 		}
 		return 0, nil
-	case *Duration:
-		r, ok := rhs.(*Duration)
+	case *Interval:
+		r, ok := rhs.(*Interval)
 		if !ok {
-			return 0, fmt.Errorf("cannot compare Duration with %T", rhs)
+			return 0, fmt.Errorf("cannot compare Interval with %T", rhs)
 		}
 		if l.Second() < r.Second() {
 			return -1, nil
@@ -129,7 +129,7 @@ func Compare(lhs, rhs Value) (int, error) {
 	case *JSON:
 		r, ok := rhs.(*JSON)
 		if !ok {
-			return 0, fmt.Errorf("cannot compare Duration with %T", rhs)
+			return 0, fmt.Errorf("cannot compare Interval with %T", rhs)
 		}
 		lb, err := l.Bytes()
 		if err != nil {
@@ -345,11 +345,11 @@ func FromSQL(val sqltypes.Value) (Value, error) {
 
 	case sqltypes.Char, sqltypes.VarChar, sqltypes.Text,
 		sqltypes.Enum, sqltypes.Set:
-		return &String{data: string(val.Raw())}, nil
+		return &VarChar{data: string(val.Raw())}, nil
 
 	case sqltypes.Binary, sqltypes.VarBinary, sqltypes.Blob,
 		sqltypes.Geometry, sqltypes.Bit, sqltypes.Expression:
-		return &Bytes{data: val.Raw()}, nil
+		return &VarBinary{data: val.Raw()}, nil
 
 	case sqltypes.Date:
 		t, err := time.Parse(time.DateOnly, string(val.Raw()))
@@ -411,9 +411,9 @@ func ToBool(val Value) bool {
 		return v.data != 0
 	case *Float64:
 		return v.data != 0
-	case *String:
+	case *VarChar:
 		return v.data != ""
-	case *Bytes:
+	case *VarBinary:
 		return len(v.data) > 0
 	case *DateTime:
 		return !v.data.IsZero()
@@ -434,9 +434,9 @@ func ToInt(val Value) (int64, error) {
 		return int64(v.Uint()), nil
 	case *Float64:
 		return int64(v.Float()), nil
-	case *String:
+	case *VarChar:
 		return strconv.ParseInt(v.String(), 10, 64)
-	case *Bytes:
+	case *VarBinary:
 		return strconv.ParseInt(string(v.Bytes()), 10, 64)
 	case *DateTime:
 		return v.data.Unix(), nil
@@ -460,9 +460,9 @@ func ToUint(val Value) (uint64, error) {
 		return v.Uint(), nil
 	case *Float64:
 		return uint64(v.Float()), nil
-	case *String:
+	case *VarChar:
 		return strconv.ParseUint(v.String(), 10, 64)
-	case *Bytes:
+	case *VarBinary:
 		return strconv.ParseUint(string(v.Bytes()), 10, 64)
 	case *DateTime:
 		return uint64(v.data.Unix()), nil
@@ -486,9 +486,9 @@ func ToFloat(val Value) (float64, error) {
 		return float64(v.Uint()), nil
 	case *Float64:
 		return v.Float(), nil
-	case *String:
+	case *VarChar:
 		return strconv.ParseFloat(v.String(), 64)
-	case *Bytes:
+	case *VarBinary:
 		return strconv.ParseFloat(string(v.Bytes()), 64)
 	case *DateTime:
 		return float64(v.data.Unix()), nil
@@ -512,13 +512,13 @@ func ToString(val Value) (string, error) {
 		return strconv.FormatUint(v.Uint(), 10), nil
 	case *Float64:
 		return strconv.FormatFloat(v.Float(), 'f', -1, 64), nil
-	case *String:
+	case *VarChar:
 		return v.String(), nil
-	case *Bytes:
+	case *VarBinary:
 		return string(v.Bytes()), nil
 	case *DateTime:
 		return v.Time().Format(time.RFC3339), nil
-	case *Duration:
+	case *Interval:
 		return v.String(), nil
 	case *JSON:
 		b, err := v.Bytes()
@@ -539,13 +539,13 @@ func ToBytes(val Value) ([]byte, error) {
 		return strconv.AppendUint(nil, v.Uint(), 10), nil
 	case *Float64:
 		return strconv.AppendFloat(nil, v.Float(), 'f', -1, 64), nil
-	case *String:
+	case *VarChar:
 		return []byte(v.String()), nil
-	case *Bytes:
+	case *VarBinary:
 		return v.Bytes(), nil
 	case *DateTime:
 		return []byte(v.Time().Format(time.RFC3339)), nil
-	case *Duration:
+	case *Interval:
 		return []byte(v.String()), nil
 	case *JSON:
 		return v.Bytes()
@@ -562,9 +562,9 @@ func ToDateTime(val Value) (time.Time, error) {
 		return time.Unix(int64(v.Uint()), 0), nil
 	case *Float64:
 		return time.UnixMilli(int64(v.Float() * 1000)), nil
-	case *String:
+	case *VarChar:
 		return time.Parse(time.RFC3339, v.String())
-	case *Bytes:
+	case *VarBinary:
 		return time.Parse(time.RFC3339, string(v.Bytes()))
 	case *DateTime:
 		return v.Time(), nil
@@ -581,9 +581,9 @@ func ToDate(val Value) (time.Time, error) {
 		return time.Unix(int64(v.Uint()), 0), nil
 	case *Float64:
 		return time.UnixMilli(int64(v.Float() * 1000)), nil
-	case *String:
+	case *VarChar:
 		return time.Parse(time.DateOnly, v.String())
-	case *Bytes:
+	case *VarBinary:
 		return time.Parse(time.DateOnly, string(v.Bytes()))
 	case *DateTime:
 		return v.Time(), nil
@@ -600,9 +600,9 @@ func ToTime(val Value) (time.Time, error) {
 		return time.Unix(int64(v.Uint()), 0), nil
 	case *Float64:
 		return time.UnixMilli(int64(v.Float() * 1000)), nil
-	case *String:
+	case *VarChar:
 		return time.Parse(time.TimeOnly, v.String())
-	case *Bytes:
+	case *VarBinary:
 		return time.Parse(time.TimeOnly, string(v.Bytes()))
 	case *DateTime:
 		return v.Time(), nil
@@ -619,9 +619,9 @@ func ToYear(val Value) (int64, error) {
 		return int64(v.Uint()), nil
 	case *Float64:
 		return int64(v.Float()), nil
-	case *String:
+	case *VarChar:
 		return strconv.ParseInt(v.String(), 10, 64)
-	case *Bytes:
+	case *VarBinary:
 		return strconv.ParseInt(string(v.Bytes()), 10, 64)
 	case *DateTime:
 		return int64(v.Time().Year()), nil
@@ -642,10 +642,10 @@ func NewValue(val any) Value {
 	case v.CanFloat():
 		return NewFloat64(v.Float())
 	case v.Kind() == reflect.String:
-		return NewString(v.String())
+		return NewVarChar(v.String())
 	case v.Kind() == reflect.Slice:
 		if v.Type().Elem().Kind() == reflect.Uint8 {
-			return NewBytes(v.Bytes())
+			return NewVarBinary(v.Bytes())
 		}
 	case v.Kind() == reflect.Struct:
 		if t, ok := val.(time.Time); ok {
@@ -666,11 +666,11 @@ func NewBool(b bool) *Int64 {
 func NewInt64(i int64) *Int64           { return &Int64{data: i} }
 func NewUint64(u uint64) *Uint64        { return &Uint64{data: u} }
 func NewFloat64(f float64) *Float64     { return &Float64{data: f} }
-func NewString(s string) *String        { return &String{data: s} }
-func NewBytes(b []byte) *Bytes          { return &Bytes{data: b} }
+func NewVarChar(s string) *VarChar      { return &VarChar{data: s} }
+func NewVarBinary(b []byte) *VarBinary  { return &VarBinary{data: b} }
 func NewDateTime(t time.Time) *DateTime { return &DateTime{data: t} }
-func NewDuration(amount int64, unit string) *Duration {
-	return &Duration{amount: amount, unit: strings.ToLower(unit)}
+func NewInterval(amount int64, unit string) *Interval {
+	return &Interval{amount: amount, unit: strings.ToLower(unit)}
 }
 func NewJSON(j any) *JSON          { return &JSON{data: j} }
 func NewTuple(vals []Value) *Tuple { return &Tuple{data: vals} }
@@ -687,18 +687,18 @@ func (v *Float64) Type() querypb.Type { return querypb.Type_FLOAT64 }
 func (v *Float64) Interface() any     { return v.data }
 func (v *Float64) Float() float64     { return v.data }
 
-func (v *String) Type() querypb.Type { return querypb.Type_VARCHAR }
-func (v *String) Interface() any     { return v.data }
-func (v *String) String() string     { return v.data }
+func (v *VarChar) Type() querypb.Type { return querypb.Type_VARCHAR }
+func (v *VarChar) Interface() any     { return v.data }
+func (v *VarChar) String() string     { return v.data }
 
-func (v *Bytes) Type() querypb.Type { return querypb.Type_VARBINARY }
-func (v *Bytes) Interface() any     { return v.data }
-func (v *Bytes) Bytes() []byte      { return v.data }
+func (v *VarBinary) Type() querypb.Type { return querypb.Type_VARBINARY }
+func (v *VarBinary) Interface() any     { return v.data }
+func (v *VarBinary) Bytes() []byte      { return v.data }
 
 func (v *DateTime) Type() querypb.Type { return querypb.Type_DATETIME }
 func (v *DateTime) Interface() any     { return v.data }
 func (v *DateTime) Time() time.Time    { return v.data }
-func (v *DateTime) Add(d *Duration) (*DateTime, error) {
+func (v *DateTime) Add(d *Interval) (*DateTime, error) {
 	switch d.Unit() {
 	case "years":
 		return &DateTime{data: v.data.AddDate(int(d.Amount()), 0, 0)}, nil
@@ -717,15 +717,15 @@ func (v *DateTime) Add(d *Duration) (*DateTime, error) {
 	}
 }
 
-func (v *Duration) Type() querypb.Type { return querypb.Type_VARCHAR }
-func (v *Duration) Interface() any     { return v.String() }
-func (v *Duration) String() string     { return fmt.Sprintf("%d %s", v.amount, v.unit) }
-func (v *Duration) Amount() int64      { return v.amount }
-func (v *Duration) Unit() string       { return v.unit }
-func (v *Duration) Scale(factor float64) *Duration {
-	return NewDuration(int64(float64(v.amount)*factor), v.unit)
+func (v *Interval) Type() querypb.Type { return querypb.Type_VARCHAR }
+func (v *Interval) Interface() any     { return v.String() }
+func (v *Interval) String() string     { return fmt.Sprintf("%d %s", v.amount, v.unit) }
+func (v *Interval) Amount() int64      { return v.amount }
+func (v *Interval) Unit() string       { return v.unit }
+func (v *Interval) Scale(factor float64) *Interval {
+	return NewInterval(int64(float64(v.amount)*factor), v.unit)
 }
-func (v *Duration) Second() int64 {
+func (v *Interval) Second() int64 {
 	switch v.unit {
 	case "years":
 		return v.amount * 365 * 24 * 60 * 60

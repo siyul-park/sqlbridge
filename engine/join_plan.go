@@ -63,17 +63,17 @@ func (p *JoinPlan) Run(ctx context.Context, binds map[string]*querypb.BindVariab
 }
 
 func (p *JoinPlan) String() string {
-	var sb strings.Builder
-	sb.WriteString("JoinPlan(")
-	sb.WriteString(p.Left.String())
-	sb.WriteString(", ")
-	sb.WriteString(p.Right.String())
-	sb.WriteString(", ")
-	sb.WriteString(p.Kind)
+	var b strings.Builder
+	b.WriteString("JoinPlan(")
+	b.WriteString(p.Left.String())
+	b.WriteString(", ")
+	b.WriteString(p.Right.String())
+	b.WriteString(", ")
+	b.WriteString(p.Kind)
 	if p.Expr != nil {
-		sb.WriteString(", ")
-		sb.WriteString(p.Expr.String())
+		b.WriteString(", ")
+		b.WriteString(p.Expr.String())
 	}
-	sb.WriteString(")")
-	return sb.String()
+	b.WriteString(")")
+	return b.String()
 }

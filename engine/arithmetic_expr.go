@@ -50,12 +50,12 @@ func (e *AddExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*qu
 			return nil, fmt.Errorf("cannot plus Float64 with %T", right)
 		}
 		return NewFloat64(l.Float() + r.Float()), nil
-	case *String:
-		r, ok := right.(*String)
+	case *VarChar:
+		r, ok := right.(*VarChar)
 		if !ok {
-			return nil, fmt.Errorf("cannot plus String with %T", right)
+			return nil, fmt.Errorf("cannot plus VarChar with %T", right)
 		}
-		return NewString(l.String() + r.String()), nil
+		return NewVarChar(l.String() + r.String()), nil
 	default:
 		return nil, fmt.Errorf("cannot plus %T with %T", left, right)
 	}
@@ -297,6 +297,9 @@ func (e *ShiftLeftExpr) Eval(ctx context.Context, row schema.Row, binds map[stri
 		if err != nil {
 			return nil, err
 		}
+		if r < 0 {
+			return nil, fmt.Errorf("cannot shift left by negative value %d", r)
+		}
 		return NewInt64(l.Int() << r), nil
 	case *Uint64:
 		r, err := ToUint(right)
@@ -335,6 +338,9 @@ func (e *ShiftRightExpr) Eval(ctx context.Context, row schema.Row, binds map[str
 		r, err := ToInt(right)
 		if err != nil {
 			return nil, err
+		}
+		if r < 0 {
+			return nil, fmt.Errorf("cannot shift right by negative value %d", r)
 		}
 		return NewInt64(l.Int() >> r), nil
 	case *Uint64:

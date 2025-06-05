@@ -82,7 +82,7 @@ func TestJoinPlan_Run(t *testing.T) {
 					As:    sqlparser.NewTableIdent("t2"),
 				},
 				Kind: sqlparser.JoinStr,
-				Expr: &UniformExpr{Input: &ColumnExpr{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}}},
+				Expr: &IdenticalExpr{Input: &ColumnExpr{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}}},
 			},
 			cursor: schema.NewInMemoryCursor([]schema.Row{
 				{

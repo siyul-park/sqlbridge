@@ -24,7 +24,7 @@ func (e *IntervalExpr) Eval(ctx context.Context, row schema.Row, binds map[strin
 	if err != nil {
 		return nil, err
 	}
-	return NewDuration(amount, e.Unit), nil
+	return NewInterval(amount, e.Unit), nil
 }
 
 func (e *IntervalExpr) String() string {

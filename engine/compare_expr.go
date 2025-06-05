@@ -267,9 +267,16 @@ func (e *LikeExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*q
 		return nil, err
 	}
 
-	pattern := "^" + regexp.QuoteMeta(rhs) + "$"
-	pattern = strings.ReplaceAll(pattern, `%`, `.*`)
-	pattern = strings.ReplaceAll(pattern, `_`, `.`)
+	parts := strings.Split(rhs, "%")
+	for i, part := range parts {
+		tokens := strings.Split(part, "_")
+		for j, tk := range tokens {
+			tokens[j] = regexp.QuoteMeta(tk)
+		}
+		parts[i] = strings.Join(tokens, ".")
+	}
+
+	pattern := "^" + strings.Join(parts, ".*") + "$"
 
 	re, err := regexp.Compile(pattern)
 	if err != nil {
@@ -319,13 +326,13 @@ func (e *RegexpExpr) String() string {
 	return fmt.Sprintf("Regexp(%s, %s)", e.Left.String(), e.Right.String())
 }
 
-type UniformExpr struct {
+type IdenticalExpr struct {
 	Input Expr
 }
 
-var _ Expr = (*UniformExpr)(nil)
+var _ Expr = (*IdenticalExpr)(nil)
 
-func (e *UniformExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
+func (e *IdenticalExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error) {
 	val, err := e.Input.Eval(ctx, row, binds)
 	if err != nil {
 		return nil, err
@@ -348,6 +355,6 @@ func (e *UniformExpr) Eval(ctx context.Context, row schema.Row, binds map[string
 	}
 }
 
-func (e *UniformExpr) String() string {
-	return fmt.Sprintf("Uniform(%s)", e.Input.String())
+func (e *IdenticalExpr) String() string {
+	return fmt.Sprintf("Identical(%s)", e.Input.String())
 }

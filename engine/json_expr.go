@@ -38,61 +38,64 @@ func (e *JSONExtractExpr) Eval(ctx context.Context, row schema.Row, binds map[st
 		return nil, err
 	}
 
+	if !strings.HasPrefix(rhs, "$") {
+		return nil, fmt.Errorf("invalid JSON path: must start with $")
+	}
+	path := rhs[1:]
+
 	var data any
 	if err := json.Unmarshal([]byte(lhs), &data); err != nil {
 		return nil, err
 	}
-
-	key := []rune(rhs)
 	curr := reflect.ValueOf(data)
 
-	quotation := false
-	apostrophe := false
+	token := ""
+	bracket, quote := false, false
+	for i := 0; i <= len(path); i++ {
+		var ch byte
+		if i < len(path) {
+			ch = path[i]
+		}
 
-	j := 0
-	for i := 0; i < len(key); i++ {
-		ch := key[i]
+		flush := i == len(path) || (!quote && !bracket && (ch == '.' || ch == '[')) || (bracket && !quote && ch == ']')
 
-		switch ch {
-		case '.', '[', ']':
-			if quotation || apostrophe {
-				continue
-			}
-			if j < i-1 {
-				key := string(key[j:i])
-				if ch == ']' {
-					if !strings.HasPrefix(key, "\"") || !strings.HasSuffix(key, "\"") {
-						index, err := strconv.Atoi(key)
-						if err != nil {
-							return nil, err
-						}
-						if curr.Kind() == reflect.Slice && index < curr.Len() {
-							curr = curr.Index(index)
-						} else {
-							return nil, fmt.Errorf("index '%d' out of range", index)
-						}
-					} else {
-						key = key[1 : len(key)-1]
-					}
+		if i < len(path) {
+			if bracket {
+				if ch == '"' {
+					quote = !quote
+				} else if ch == ']' && !quote {
+					bracket = false
+				} else {
+					token += string(ch)
 				}
-				if curr.Kind() == reflect.Map {
-					curr = curr.MapIndex(reflect.ValueOf(key))
-					if !curr.IsValid() {
-						return nil, fmt.Errorf("rhs '%s' not found", key)
-					}
-				}
-			}
-			j = i + 1
-		case '"':
-			if !apostrophe {
-				quotation = !quotation
-			}
-		case '\'':
-			if !quotation {
-				apostrophe = !apostrophe
+			} else if ch == '[' {
+				bracket = true
+			} else if ch != '.' {
+				token += string(ch)
 			}
 		}
+
+		if flush && token != "" {
+			if curr.Kind() == reflect.Map {
+				key := token
+				v := curr.MapIndex(reflect.ValueOf(key))
+				if !v.IsValid() {
+					return nil, nil
+				}
+				curr = reflect.ValueOf(v.Interface())
+			} else if curr.Kind() == reflect.Slice {
+				idx, err := strconv.Atoi(token)
+				if err != nil || idx < 0 || idx >= curr.Len() {
+					return nil, nil
+				}
+				curr = reflect.ValueOf(curr.Index(idx).Interface())
+			} else {
+				return nil, nil
+			}
+			token = ""
+		}
 	}
+
 	if !curr.IsValid() {
 		return nil, nil
 	}

@@ -74,15 +74,15 @@ func (p *ProjectionPlan) Run(ctx context.Context, binds map[string]*querypb.Bind
 }
 
 func (p *ProjectionPlan) String() string {
-	var builder strings.Builder
-	builder.WriteString("TableExpr(")
-	builder.WriteString(p.Input.String())
+	var b strings.Builder
+	b.WriteString("Projection(")
+	b.WriteString(p.Input.String())
 	for _, term := range p.Items {
-		builder.WriteString(", ")
-		builder.WriteString(term.String())
+		b.WriteString(", ")
+		b.WriteString(term.String())
 	}
-	builder.WriteString(")")
-	return builder.String()
+	b.WriteString(")")
+	return b.String()
 }
 
 func (*StartItem) iProjectionItem() {
@@ -96,5 +96,5 @@ func (*AliasItem) iProjectionItem() {
 }
 
 func (t *AliasItem) String() string {
-	return fmt.Sprintf("AliasPlan(%s, %s)", t.Expr.String(), sqlparser.String(t.As))
+	return fmt.Sprintf("Alias(%s, %s)", t.Expr.String(), sqlparser.String(t.As))
 }
