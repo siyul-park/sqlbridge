@@ -347,6 +347,8 @@ func (p *Planner) planExpr(expr sqlparser.Expr) (Expr, error) {
 		return p.planColName(expr)
 	case sqlparser.ValTuple:
 		return p.planValTuple(expr)
+	case *sqlparser.Subquery:
+		return p.planSubqueryExpr(expr)
 	case sqlparser.ListArg:
 		return p.planListArg(expr)
 	case *sqlparser.BinaryExpr:
@@ -610,6 +612,14 @@ func (p *Planner) planValTuple(expr sqlparser.ValTuple) (Expr, error) {
 		exprs = append(exprs, elem)
 	}
 	return &TupleExpr{Exprs: exprs}, nil
+}
+
+func (p *Planner) planSubqueryExpr(expr *sqlparser.Subquery) (Expr, error) {
+	plan, err := p.planSubquery(expr)
+	if err != nil {
+		return nil, err
+	}
+	return &SubqueryExpr{Input: plan}, nil
 }
 
 func (p *Planner) planListArg(expr sqlparser.ListArg) (Expr, error) {
