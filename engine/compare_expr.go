@@ -34,6 +34,23 @@ func (e *EqualExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*
 	return NewBool(cmp == 0), nil
 }
 
+func (e *EqualExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *EqualExpr) Copy() Expr {
+	return &EqualExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
+}
+
 func (e *EqualExpr) String() string {
 	return fmt.Sprintf("Equal(%s, %s)", e.Left.String(), e.Right.String())
 }
@@ -60,6 +77,23 @@ func (e *GreaterThanExpr) Eval(ctx context.Context, row schema.Row, binds map[st
 		return nil, err
 	}
 	return NewBool(cmp > 0), nil
+}
+
+func (e *GreaterThanExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *GreaterThanExpr) Copy() Expr {
+	return &GreaterThanExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
 }
 
 func (e *GreaterThanExpr) String() string {
@@ -90,6 +124,23 @@ func (e *GreaterThanOrEqualExpr) Eval(ctx context.Context, row schema.Row, binds
 	return NewBool(cmp >= 0), nil
 }
 
+func (e *GreaterThanOrEqualExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *GreaterThanOrEqualExpr) Copy() Expr {
+	return &GreaterThanOrEqualExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
+}
+
 func (e *GreaterThanOrEqualExpr) String() string {
 	return fmt.Sprintf("GreaterThanOrEqual(%s, %s)", e.Left.String(), e.Right.String())
 }
@@ -118,6 +169,23 @@ func (e *LessThanExpr) Eval(ctx context.Context, row schema.Row, binds map[strin
 	return NewBool(cmp < 0), nil
 }
 
+func (e *LessThanExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *LessThanExpr) Copy() Expr {
+	return &LessThanExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
+}
+
 func (e *LessThanExpr) String() string {
 	return fmt.Sprintf("LessThan(%s, %s)", e.Left.String(), e.Right.String())
 }
@@ -144,6 +212,23 @@ func (e *LessThanOrEqualExpr) Eval(ctx context.Context, row schema.Row, binds ma
 		return nil, err
 	}
 	return NewBool(cmp <= 0), nil
+}
+
+func (e *LessThanOrEqualExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *LessThanOrEqualExpr) Copy() Expr {
+	return &LessThanOrEqualExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
 }
 
 func (e *LessThanOrEqualExpr) String() string {
@@ -183,6 +268,23 @@ func (e *InExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*que
 		}
 	}
 	return False, nil
+}
+
+func (e *InExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *InExpr) Copy() Expr {
+	return &InExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
 }
 
 func (e *InExpr) String() string {
@@ -237,6 +339,23 @@ func (e *MatchExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*
 	return False, nil
 }
 
+func (e *MatchExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *MatchExpr) Copy() Expr {
+	return &MatchExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
+}
+
 func (e *MatchExpr) String() string {
 	return fmt.Sprintf("Match(%s, %s)", e.Left.String(), e.Right.String())
 }
@@ -285,6 +404,23 @@ func (e *LikeExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*q
 	return NewBool(re.MatchString(lhs)), nil
 }
 
+func (e *LikeExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *LikeExpr) Copy() Expr {
+	return &LikeExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
+}
+
 func (e *LikeExpr) String() string {
 	return fmt.Sprintf("Like(%s, %s)", e.Left.String(), e.Right.String())
 }
@@ -322,6 +458,23 @@ func (e *RegexpExpr) Eval(ctx context.Context, row schema.Row, binds map[string]
 	return NewBool(re.MatchString(lhs)), nil
 }
 
+func (e *RegexpExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *RegexpExpr) Copy() Expr {
+	return &RegexpExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
+}
+
 func (e *RegexpExpr) String() string {
 	return fmt.Sprintf("Regexp(%s, %s)", e.Left.String(), e.Right.String())
 }
@@ -352,6 +505,19 @@ func (e *IdenticalExpr) Eval(ctx context.Context, row schema.Row, binds map[stri
 		return True, nil
 	default:
 		return True, nil
+	}
+}
+
+func (e *IdenticalExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	return e.Input.Walk(f)
+}
+
+func (e *IdenticalExpr) Copy() Expr {
+	return &IdenticalExpr{
+		Input: e.Input.Copy(),
 	}
 }
 

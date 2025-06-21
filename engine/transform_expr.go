@@ -44,6 +44,19 @@ func (e *DistinctExpr) Eval(ctx context.Context, row schema.Row, binds map[strin
 	return NewTuple(vals), nil
 }
 
+func (e *DistinctExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	return e.Input.Walk(f)
+}
+
+func (e *DistinctExpr) Copy() Expr {
+	return &DistinctExpr{
+		Input: e.Input.Copy(),
+	}
+}
+
 func (e *DistinctExpr) String() string {
 	return fmt.Sprintf("Distinct(%s)", e.Input.String())
 }
@@ -91,6 +104,24 @@ func (e *OrderExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*
 		row.Children = append(row.Children, pair.val)
 	}
 	return e.Left.Eval(ctx, row, binds)
+}
+
+func (e *OrderExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *OrderExpr) Copy() Expr {
+	return &OrderExpr{
+		Left:      e.Left.Copy(),
+		Right:     e.Right.Copy(),
+		Direction: e.Direction,
+	}
 }
 
 func (e *OrderExpr) String() string {

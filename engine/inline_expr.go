@@ -21,6 +21,16 @@ func (e *InlineExpr) Eval(ctx context.Context, row schema.Row, binds map[string]
 	return e.eval(ctx, row, binds)
 }
 
+func (e *InlineExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	return f(e)
+}
+
+func (e *InlineExpr) Copy() Expr {
+	return &InlineExpr{
+		eval: e.eval,
+	}
+}
+
 func (e *InlineExpr) String() string {
 	return "Inline(<native>)"
 }

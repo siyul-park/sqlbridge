@@ -35,6 +35,13 @@ func (p *AliasPlan) Run(ctx context.Context, binds map[string]*querypb.BindVaria
 	}), nil
 }
 
+func (p *AliasPlan) Walk(f func(Plan) (bool, error)) (bool, error) {
+	if cont, err := f(p); !cont || err != nil {
+		return cont, err
+	}
+	return p.Input.Walk(f)
+}
+
 func (p *AliasPlan) String() string {
 	return fmt.Sprintf("AliasPlan(%s, %s)", p.Input.String(), sqlparser.String(p.As))
 }

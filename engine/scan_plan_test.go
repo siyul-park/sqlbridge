@@ -45,7 +45,10 @@ func TestScanPlan_Run(t *testing.T) {
 		cursor schema.Cursor
 	}{
 		{
-			plan: &ScanPlan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
+			plan: &ScanPlan{
+				Catalog: catalog,
+				Table:   sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")},
+			},
 			cursor: schema.NewInMemoryCursor([]schema.Row{
 				{
 					Columns: []*sqlparser.ColName{{Name: sqlparser.NewColIdent("id")}, {Name: sqlparser.NewColIdent("name")}},

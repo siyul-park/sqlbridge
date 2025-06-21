@@ -38,6 +38,16 @@ func (e *ValArgExpr) Eval(_ context.Context, _ schema.Row, binds map[string]*que
 	}
 }
 
+func (e *ValArgExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	return f(e)
+}
+
+func (e *ValArgExpr) Copy() Expr {
+	return &ValArgExpr{
+		Value: e.Value,
+	}
+}
+
 func (e *ValArgExpr) String() string {
 	return fmt.Sprintf("ValArg(%s)", e.Value)
 }
@@ -60,6 +70,20 @@ func (e *ColumnExpr) Eval(_ context.Context, row schema.Row, _ map[string]*query
 		}
 	}
 	return NewTuple(vals), nil
+}
+
+func (e *ColumnExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	return f(e)
+}
+
+func (e *ColumnExpr) Copy() Expr {
+	return &ColumnExpr{
+		Value: &sqlparser.ColName{
+			Metadata:  e.Value.Metadata,
+			Name:      e.Value.Name,
+			Qualifier: e.Value.Qualifier,
+		},
+	}
 }
 
 func (e *ColumnExpr) String() string {
@@ -85,6 +109,16 @@ func (e *TableExpr) Eval(_ context.Context, row schema.Row, _ map[string]*queryp
 		vals = append(vals, val)
 	}
 	return NewTuple(vals), nil
+}
+
+func (e *TableExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	return f(e)
+}
+
+func (e *TableExpr) Copy() Expr {
+	return &TableExpr{
+		Value: e.Value,
+	}
 }
 
 func (e *TableExpr) String() string {

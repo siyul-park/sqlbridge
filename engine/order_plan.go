@@ -63,6 +63,13 @@ func (p *OrderPlan) Run(ctx context.Context, binds map[string]*querypb.BindVaria
 	return schema.NewInMemoryCursor(rows), nil
 }
 
+func (p *OrderPlan) Walk(f func(Plan) (bool, error)) (bool, error) {
+	if cont, err := f(p); !cont || err != nil {
+		return cont, err
+	}
+	return p.Input.Walk(f)
+}
+
 func (p *OrderPlan) String() string {
 	return fmt.Sprintf("OrderPlan(%s, %s, %s)", p.Input.String(), p.Expr.String(), p.Direction)
 }

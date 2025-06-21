@@ -9,5 +9,6 @@ import (
 
 type Plan interface {
 	Run(ctx context.Context, binds map[string]*querypb.BindVariable) (schema.Cursor, error)
+	Walk(func(Plan) (bool, error)) (bool, error)
 	String() string
 }

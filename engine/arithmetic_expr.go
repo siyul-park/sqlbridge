@@ -61,6 +61,23 @@ func (e *AddExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*qu
 	}
 }
 
+func (e *AddExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *AddExpr) Copy() Expr {
+	return &AddExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
+}
+
 func (e *AddExpr) String() string {
 	return fmt.Sprintf("Add(%s, %s)", e.Left, e.Right)
 }
@@ -111,6 +128,23 @@ func (e *SubExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*qu
 	}
 }
 
+func (e *SubExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *SubExpr) Copy() Expr {
+	return &SubExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
+}
+
 func (e *SubExpr) String() string {
 	return fmt.Sprintf("Sub(%s, %s)", e.Left, e.Right)
 }
@@ -158,6 +192,23 @@ func (e *MulExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*qu
 		return NewFloat64(l.Float() * r.Float()), nil
 	default:
 		return nil, fmt.Errorf("cannot multiply %T with %T", left, right)
+	}
+}
+
+func (e *MulExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *MulExpr) Copy() Expr {
+	return &MulExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
 	}
 }
 
@@ -220,6 +271,23 @@ func (e *DivExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*qu
 	}
 }
 
+func (e *DivExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *DivExpr) Copy() Expr {
+	return &DivExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
+}
+
 func (e *DivExpr) String() string {
 	return fmt.Sprintf("Div(%s, %s)", e.Left, e.Right)
 }
@@ -270,6 +338,23 @@ func (e *ModExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*qu
 	}
 }
 
+func (e *ModExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *ModExpr) Copy() Expr {
+	return &ModExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
+}
+
 func (e *ModExpr) String() string {
 	return fmt.Sprintf("Mod(%s, %s)", e.Left, e.Right)
 }
@@ -309,6 +394,23 @@ func (e *ShiftLeftExpr) Eval(ctx context.Context, row schema.Row, binds map[stri
 		return NewUint64(l.Uint() << r), nil
 	default:
 		return nil, fmt.Errorf("cannot shift %T by %T", left, right)
+	}
+}
+
+func (e *ShiftLeftExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *ShiftLeftExpr) Copy() Expr {
+	return &ShiftLeftExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
 	}
 }
 
@@ -354,6 +456,23 @@ func (e *ShiftRightExpr) Eval(ctx context.Context, row schema.Row, binds map[str
 	}
 }
 
+func (e *ShiftRightExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *ShiftRightExpr) Copy() Expr {
+	return &ShiftRightExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
+}
+
 func (e *ShiftRightExpr) String() string {
 	return fmt.Sprintf("ShiftRight(%s, %s)", e.Left, e.Right)
 }
@@ -377,6 +496,19 @@ func (e *BitNotExpr) Eval(ctx context.Context, row schema.Row, binds map[string]
 		return NewUint64(^l.Uint()), nil
 	default:
 		return nil, fmt.Errorf("cannot apply bitwise NOT to %T", input)
+	}
+}
+
+func (e *BitNotExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	return e.Input.Walk(f)
+}
+
+func (e *BitNotExpr) Copy() Expr {
+	return &BitNotExpr{
+		Input: e.Input.Copy(),
 	}
 }
 

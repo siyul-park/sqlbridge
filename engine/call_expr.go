@@ -48,6 +48,23 @@ func (e *CallExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*q
 	return e.Dispatcher.Dispatch(name, args)
 }
 
+func (e *CallExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	return e.Input.Walk(f)
+}
+
+func (e *CallExpr) Copy() Expr {
+	return &CallExpr{
+		Dispatcher: e.Dispatcher,
+		Qualifier:  e.Qualifier,
+		Name:       e.Name,
+		Input:      e.Input.Copy(),
+		Aggregate:  e.Aggregate,
+	}
+}
+
 func (e *CallExpr) String() string {
 	name := e.Name.String()
 	if !e.Qualifier.IsEmpty() {

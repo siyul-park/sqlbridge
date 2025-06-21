@@ -59,6 +59,13 @@ func (p *LimitPlan) Run(ctx context.Context, binds map[string]*querypb.BindVaria
 	}), nil
 }
 
+func (p *LimitPlan) Walk(f func(Plan) (bool, error)) (bool, error) {
+	if cont, err := f(p); !cont || err != nil {
+		return cont, err
+	}
+	return p.Input.Walk(f)
+}
+
 func (p *LimitPlan) String() string {
 	return fmt.Sprintf("LimitPlan(%s, %s)", p.Count.String(), p.Offset.String())
 }

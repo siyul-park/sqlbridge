@@ -32,6 +32,13 @@ func (p *FilterPlan) Run(ctx context.Context, binds map[string]*querypb.BindVari
 	}), nil
 }
 
+func (p *FilterPlan) Walk(f func(Plan) (bool, error)) (bool, error) {
+	if cont, err := f(p); !cont || err != nil {
+		return cont, err
+	}
+	return p.Input.Walk(f)
+}
+
 func (p *FilterPlan) String() string {
 	return fmt.Sprintf("FilterPlan(%s, %s)", p.Input.String(), p.Expr)
 }

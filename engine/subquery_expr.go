@@ -46,6 +46,16 @@ func (e *SubqueryExpr) Eval(ctx context.Context, _ schema.Row, binds map[string]
 	return NewTuple(vals), nil
 }
 
+func (e *SubqueryExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	return f(e)
+}
+
+func (e *SubqueryExpr) Copy() Expr {
+	return &SubqueryExpr{
+		Input: e.Input,
+	}
+}
+
 func (e *SubqueryExpr) String() string {
 	return "Subquery(" + e.Input.String() + ")"
 }
