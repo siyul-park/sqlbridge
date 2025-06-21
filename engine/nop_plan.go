@@ -16,6 +16,10 @@ func (p *NOPPlan) Run(_ context.Context, _ map[string]*querypb.BindVariable) (sc
 	return schema.NewInMemoryCursor(nil), nil
 }
 
+func (p *NOPPlan) Walk(f func(Plan) (bool, error)) (bool, error) {
+	return f(p)
+}
+
 func (p *NOPPlan) String() string {
 	return ""
 }

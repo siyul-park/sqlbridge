@@ -9,5 +9,7 @@ import (
 
 type Expr interface {
 	Eval(ctx context.Context, row schema.Row, binds map[string]*querypb.BindVariable) (Value, error)
+	Walk(func(Expr) (bool, error)) (bool, error)
+	Copy() Expr
 	String() string
 }

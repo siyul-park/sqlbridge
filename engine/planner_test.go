@@ -77,8 +77,15 @@ func TestPlanner_Plan(t *testing.T) {
 			plan: &ProjectionPlan{
 				Input: &FilterPlan{
 					Input: &AliasPlan{
-						Input: &ScanPlan{Catalog: catalog, Table: sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")}},
-						As:    sqlparser.NewTableIdent("t1"),
+						Input: &ScanPlan{
+							Catalog: catalog,
+							Table:   sqlparser.TableName{Name: sqlparser.NewTableIdent("t1")},
+							Expr: &EqualExpr{
+								Left:  &IndexExpr{Left: &ColumnExpr{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}}, Right: &LiteralExpr{Value: sqltypes.NewInt64(0)}},
+								Right: &LiteralExpr{Value: sqltypes.NewInt64(0)},
+							},
+						},
+						As: sqlparser.NewTableIdent("t1"),
 					},
 					Expr: &EqualExpr{
 						Left:  &IndexExpr{Left: &ColumnExpr{Value: &sqlparser.ColName{Name: sqlparser.NewColIdent("id")}}, Right: &LiteralExpr{Value: sqltypes.NewInt64(0)}},

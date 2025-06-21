@@ -27,6 +27,20 @@ func (e *IntervalExpr) Eval(ctx context.Context, row schema.Row, binds map[strin
 	return NewInterval(amount, e.Unit), nil
 }
 
+func (e *IntervalExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	return e.Input.Walk(f)
+}
+
+func (e *IntervalExpr) Copy() Expr {
+	return &IntervalExpr{
+		Input: e.Input.Copy(),
+		Unit:  e.Unit,
+	}
+}
+
 func (e *IntervalExpr) String() string {
 	return fmt.Sprintf("Interval(%s, %s)", e.Input, e.Unit)
 }

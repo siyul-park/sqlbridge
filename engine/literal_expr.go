@@ -18,6 +18,16 @@ func (e *LiteralExpr) Eval(_ context.Context, _ schema.Row, _ map[string]*queryp
 	return FromSQL(e.Value)
 }
 
+func (e *LiteralExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	return f(e)
+}
+
+func (e *LiteralExpr) Copy() Expr {
+	return &LiteralExpr{
+		Value: e.Value,
+	}
+}
+
 func (e *LiteralExpr) String() string {
 	return e.Value.String()
 }

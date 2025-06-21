@@ -30,6 +30,28 @@ func (e *TupleExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*
 	return NewTuple(vals), nil
 }
 
+func (e *TupleExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	for _, expr := range e.Exprs {
+		if cont, err := expr.Walk(f); !cont || err != nil {
+			return cont, err
+		}
+	}
+	return true, nil
+}
+
+func (e *TupleExpr) Copy() Expr {
+	exprs := make([]Expr, len(e.Exprs))
+	for i, expr := range e.Exprs {
+		exprs[i] = expr.Copy()
+	}
+	return &TupleExpr{
+		Exprs: exprs,
+	}
+}
+
 func (e *TupleExpr) String() string {
 	parts := make([]string, len(e.Exprs))
 	for i, e := range e.Exprs {
@@ -62,6 +84,28 @@ func (e *SpreadExpr) Eval(ctx context.Context, row schema.Row, binds map[string]
 		return vals[0], nil
 	}
 	return NewTuple(vals), nil
+}
+
+func (e *SpreadExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	for _, expr := range e.Exprs {
+		if cont, err := expr.Walk(f); !cont || err != nil {
+			return cont, err
+		}
+	}
+	return true, nil
+}
+
+func (e *SpreadExpr) Copy() Expr {
+	exprs := make([]Expr, len(e.Exprs))
+	for i, expr := range e.Exprs {
+		exprs[i] = expr.Copy()
+	}
+	return &SpreadExpr{
+		Exprs: exprs,
+	}
 }
 
 func (e *SpreadExpr) String() string {
@@ -105,6 +149,23 @@ func (e *IndexExpr) Eval(ctx context.Context, row schema.Row, binds map[string]*
 	}
 }
 
+func (e *IndexExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *IndexExpr) Copy() Expr {
+	return &IndexExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
+}
+
 func (e *IndexExpr) String() string {
-	return fmt.Sprintf("Index(%s, %s)", e.Left.String(), e.Right.String())
+	return fmt.Sprintf("Indexes(%s, %s)", e.Left.String(), e.Right.String())
 }

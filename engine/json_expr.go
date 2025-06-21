@@ -102,6 +102,23 @@ func (e *JSONExtractExpr) Eval(ctx context.Context, row schema.Row, binds map[st
 	return NewValue(curr.Interface()), nil
 }
 
+func (e *JSONExtractExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := e.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return e.Right.Walk(f)
+}
+
+func (e *JSONExtractExpr) Copy() Expr {
+	return &JSONExtractExpr{
+		Left:  e.Left.Copy(),
+		Right: e.Right.Copy(),
+	}
+}
+
 func (e *JSONExtractExpr) String() string {
 	return fmt.Sprintf("JSONExtract(%s, %s)", e.Left.String(), e.Right.String())
 }

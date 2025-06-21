@@ -29,6 +29,20 @@ func (e *ConvertExpr) Eval(ctx context.Context, row schema.Row, binds map[string
 	return FromSQL(val)
 }
 
+func (e *ConvertExpr) Walk(f func(Expr) (bool, error)) (bool, error) {
+	if cont, err := f(e); !cont || err != nil {
+		return cont, err
+	}
+	return e.Input.Walk(f)
+}
+
+func (e *ConvertExpr) Copy() Expr {
+	return &ConvertExpr{
+		Input: e.Input.Copy(),
+		Type:  e.Type,
+	}
+}
+
 func (e *ConvertExpr) String() string {
 	return fmt.Sprintf("Convert(%s, %s)", e.Input.String(), sqlparser.String(e.Type))
 }

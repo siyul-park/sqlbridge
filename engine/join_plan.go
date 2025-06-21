@@ -2,19 +2,15 @@ package engine
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/siyul-park/sqlbridge/schema"
-	"github.com/xwb1989/sqlparser"
 	"github.com/xwb1989/sqlparser/dependency/querypb"
 )
 
 type JoinPlan struct {
 	Left  Plan
 	Right Plan
-	Kind  string
-	Expr  Expr
 }
 
 var _ Plan = (*JoinPlan)(nil)
@@ -39,27 +35,26 @@ func (p *JoinPlan) Run(ctx context.Context, binds map[string]*querypb.BindVariab
 	}
 
 	var joins []schema.Row
-	switch p.Kind {
-	case sqlparser.JoinStr:
-		for _, l := range lhs {
-			for _, r := range rhs {
-				join := schema.Row{
-					Columns: append(l.Columns, r.Columns...),
-					Values:  append(l.Values, r.Values...),
-				}
-				if val, err := p.Expr.Eval(ctx, join, binds); err != nil {
-					return nil, err
-				} else if !ToBool(val) {
-					continue
-				}
-				joins = append(joins, join)
-			}
+	for _, l := range lhs {
+		for _, r := range rhs {
+			joins = append(joins, schema.Row{
+				Columns: append(l.Columns, r.Columns...),
+				Values:  append(l.Values, r.Values...),
+			})
 		}
-	default:
-		return nil, fmt.Errorf("unknown join type: %s", p.Kind)
 	}
 
 	return schema.NewInMemoryCursor(joins), nil
+}
+
+func (p *JoinPlan) Walk(f func(Plan) (bool, error)) (bool, error) {
+	if cont, err := f(p); !cont || err != nil {
+		return cont, err
+	}
+	if cont, err := p.Left.Walk(f); !cont || err != nil {
+		return cont, err
+	}
+	return p.Right.Walk(f)
 }
 
 func (p *JoinPlan) String() string {
@@ -68,12 +63,6 @@ func (p *JoinPlan) String() string {
 	b.WriteString(p.Left.String())
 	b.WriteString(", ")
 	b.WriteString(p.Right.String())
-	b.WriteString(", ")
-	b.WriteString(p.Kind)
-	if p.Expr != nil {
-		b.WriteString(", ")
-		b.WriteString(p.Expr.String())
-	}
 	b.WriteString(")")
 	return b.String()
 }

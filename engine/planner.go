@@ -97,7 +97,6 @@ func (p *Planner) planTableExprs(node sqlparser.TableExprs) (Plan, error) {
 		left = &JoinPlan{
 			Left:  left,
 			Right: right,
-			Kind:  sqlparser.JoinStr,
 		}
 	}
 	return left, nil
@@ -158,25 +157,27 @@ func (p *Planner) planJoinTableExpr(node *sqlparser.JoinTableExpr) (Plan, error)
 		return nil, err
 	}
 
-	plan := &JoinPlan{
+	var plan Plan = &JoinPlan{
 		Left:  left,
 		Right: right,
-		Kind:  node.Join,
 	}
 
 	if node.Condition.On != nil {
 		if expr, err := p.planExpr(node.Condition.On); err != nil {
 			return nil, err
 		} else {
-			plan.Expr = expr
+			plan = &FilterPlan{
+				Input: plan,
+				Expr:  expr,
+			}
 		}
 	}
+
 	for _, u := range node.Condition.Using {
-		e := &IdenticalExpr{Input: &ColumnExpr{Value: &sqlparser.ColName{Name: u}}}
-		if plan.Expr != nil {
-			plan.Expr = &AndExpr{Left: plan.Expr, Right: e}
-		} else {
-			plan.Expr = e
+		expr := &IdenticalExpr{Input: &ColumnExpr{Value: &sqlparser.ColName{Name: u}}}
+		plan = &FilterPlan{
+			Input: plan,
+			Expr:  expr,
 		}
 	}
 	return plan, nil
@@ -196,6 +197,35 @@ func (p *Planner) planWhere(input Plan, node *sqlparser.Where) (Plan, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		exprs := p.splitByTables(expr)
+		_, _ = input.Walk(func(plan Plan) (bool, error) {
+			switch p := plan.(type) {
+			case *AliasPlan:
+				if i, ok := p.Input.(*ScanPlan); ok {
+					for table, expr := range exprs {
+						if (table.Name.IsEmpty() || table.Name == p.As) && (table.Qualifier.IsEmpty() || table.Qualifier == i.Table.Qualifier) {
+							expr = expr.Copy()
+							_, _ = expr.Walk(func(expr Expr) (bool, error) {
+								if e, ok := expr.(*ColumnExpr); ok {
+									e.Value.Qualifier = sqlparser.TableName{}
+								}
+								return true, nil
+							})
+							if i.Expr == nil {
+								i.Expr = expr
+							} else {
+								i.Expr = &AndExpr{Left: i.Expr, Right: expr}
+							}
+						}
+					}
+				}
+			case *JoinPlan:
+				return true, nil
+			}
+			return false, nil
+		})
+
 		return &FilterPlan{
 			Input: input,
 			Expr:  expr,
@@ -228,6 +258,7 @@ func (p *Planner) planHaving(input Plan, node *sqlparser.Where) (Plan, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		return &FilterPlan{
 			Input: input,
 			Expr:  expr,
@@ -870,4 +901,36 @@ func (p *Planner) planGroupConcatExpr(expr *sqlparser.GroupConcatExpr) (Expr, er
 
 func (p *Planner) planDefault(_ *sqlparser.Default) (Expr, error) {
 	return &LiteralExpr{Value: sqltypes.NULL}, nil
+}
+
+func (p *Planner) splitByTables(expr Expr) map[sqlparser.TableName]Expr {
+	exprs := make(map[sqlparser.TableName]Expr)
+	queue := []Expr{expr}
+	for len(queue) > 0 {
+		expr, queue = queue[0], queue[1:]
+
+		if e, ok := expr.(*AndExpr); ok {
+			queue = append(queue, e.Left, e.Right)
+			continue
+		}
+
+		tables := make(map[sqlparser.TableName]struct{})
+		_, _ = expr.Walk(func(expr Expr) (bool, error) {
+			if e, ok := expr.(*ColumnExpr); ok {
+				tables[e.Value.Qualifier] = struct{}{}
+			}
+			return true, nil
+		})
+
+		if len(tables) == 1 {
+			for t := range tables {
+				if existing, ok := exprs[t]; ok {
+					exprs[t] = &AndExpr{Left: existing, Right: expr}
+				} else {
+					exprs[t] = expr
+				}
+			}
+		}
+	}
+	return exprs
 }

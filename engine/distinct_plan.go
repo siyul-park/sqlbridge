@@ -61,6 +61,13 @@ func (p *DistinctPlan) Run(ctx context.Context, binds map[string]*querypb.BindVa
 	}), nil
 }
 
+func (p *DistinctPlan) Walk(f func(Plan) (bool, error)) (bool, error) {
+	if cont, err := f(p); !cont || err != nil {
+		return cont, err
+	}
+	return p.Input.Walk(f)
+}
+
 func (p *DistinctPlan) String() string {
 	return fmt.Sprintf("DistinctPlan(%s)", p.Input.String())
 }
