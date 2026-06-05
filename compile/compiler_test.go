@@ -86,6 +86,14 @@ func TestCompiler_Compile(t *testing.T) {
 		assert.Equal(t, "2", rows[0].Values[0].ToString())
 	})
 
+	t.Run("distinct", func(t *testing.T) {
+		dups := catalog.NewInMemoryTable([]catalog.Row{intRow(1, 10), intRow(1, 10), intRow(2, 20)})
+		dcat := catalog.NewInMemoryCatalog(map[string]catalog.Table{"t": dups})
+		prog := compileSQL(t, dcat, "select distinct a from t")
+		rows := run(t, prog)
+		require.Len(t, rows, 2)
+	})
+
 	t.Run("order by descending", func(t *testing.T) {
 		prog := compileSQL(t, cat, "select a from t order by a desc")
 		rows := run(t, prog)

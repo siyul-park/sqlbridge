@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/xwb1989/sqlparser"
 	"github.com/xwb1989/sqlparser/dependency/sqltypes"
@@ -92,6 +94,39 @@ func (r *Result) Sort(desc []bool) {
 		r.rows[i] = pairs[i].row
 		r.keys[i] = pairs[i].key
 	}
+}
+
+// Distinct removes duplicate rows, preserving first-seen order and any aligned
+// sort keys.
+func (r *Result) Distinct() {
+	seen := make(map[string]struct{}, len(r.rows))
+	rows := r.rows[:0:0]
+	keys := r.keys[:0:0]
+	for i, row := range r.rows {
+		h := hashRow(row)
+		if _, ok := seen[h]; ok {
+			continue
+		}
+		seen[h] = struct{}{}
+		rows = append(rows, row)
+		if i < len(r.keys) {
+			keys = append(keys, r.keys[i])
+		}
+	}
+	r.rows = rows
+	r.keys = keys
+}
+
+// hashRow builds a canonical key from a row's column values.
+func hashRow(row catalog.Row) string {
+	var sb strings.Builder
+	for _, v := range row.Values {
+		sb.WriteString(strconv.Itoa(int(v.Type())))
+		sb.WriteByte(':')
+		sb.Write(v.Raw())
+		sb.WriteByte(';')
+	}
+	return sb.String()
 }
 
 // Limit applies an OFFSET/row-count window to the accumulated rows. A negative

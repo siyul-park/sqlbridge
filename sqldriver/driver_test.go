@@ -57,6 +57,12 @@ func TestDriver_Query(t *testing.T) {
 		assert.Equal(t, [][2]int64{{2, 20}, {3, 30}}, got)
 	})
 
+	t.Run("bind variables", func(t *testing.T) {
+		var b int
+		require.NoError(t, db.QueryRow("select b from t where a = ?", 2).Scan(&b))
+		assert.Equal(t, 20, b)
+	})
+
 	t.Run("select star", func(t *testing.T) {
 		rows, err := db.Query("select * from t")
 		require.NoError(t, err)

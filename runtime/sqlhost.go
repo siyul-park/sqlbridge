@@ -27,6 +27,7 @@ type Session struct {
 	result   *Result
 	grouper  *Grouper
 	affected int64
+	binds    map[string]value.Value
 }
 
 // NewSession creates a session writing into result.
@@ -246,6 +247,19 @@ func SortFunc(desc []bool) *interp.HostFunction {
 			return nil, err
 		}
 		sess.result.Sort(desc)
+		return []types.Boxed{types.BoxedNull}, nil
+	})
+}
+
+// DistinctFunc removes duplicate result rows after the scan completes. Arity 0.
+// Returns NULL.
+func DistinctFunc() *interp.HostFunction {
+	return interp.NewHostFunction(refToRef, func(vm *interp.Interpreter, _ []types.Boxed) ([]types.Boxed, error) {
+		sess, err := session(vm)
+		if err != nil {
+			return nil, err
+		}
+		sess.result.Distinct()
 		return []types.Boxed{types.BoxedNull}, nil
 	})
 }

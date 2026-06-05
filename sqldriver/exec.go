@@ -10,12 +10,13 @@ import (
 
 	"github.com/siyul-park/sqlbridge/compile"
 	"github.com/siyul-park/sqlbridge/runtime"
+	"github.com/siyul-park/sqlbridge/value"
 )
 
 var _ driver.ExecerContext = (*connection)(nil)
 
 // ExecContext compiles and runs a write statement, returning the affected count.
-func (c *connection) ExecContext(ctx context.Context, query string, _ []driver.NamedValue) (driver.Result, error) {
+func (c *connection) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
 	stmt, err := sqlparser.Parse(query)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -24,15 +25,16 @@ func (c *connection) ExecContext(ctx context.Context, query string, _ []driver.N
 	if err != nil {
 		return nil, err
 	}
-	return runExec(ctx, prog)
+	return runExec(ctx, prog, namedBinds(args))
 }
 
 // runExec executes a write program and reports the number of affected rows.
-func runExec(ctx context.Context, prog *compile.Program) (driver.Result, error) {
+func runExec(ctx context.Context, prog *compile.Program, binds map[string]value.Value) (driver.Result, error) {
 	vm := interp.New(prog.Program)
 	defer vm.Close()
 
 	sess := runtime.NewSession(runtime.NewResult(nil))
+	sess.SetBinds(binds)
 	if err := vm.Run(runtime.WithSession(ctx, sess)); err != nil {
 		return nil, err
 	}

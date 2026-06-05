@@ -10,15 +10,17 @@ import (
 	"github.com/siyul-park/sqlbridge/catalog"
 	"github.com/siyul-park/sqlbridge/compile"
 	"github.com/siyul-park/sqlbridge/runtime"
+	"github.com/siyul-park/sqlbridge/value"
 )
 
 // run executes a compiled program and returns its rows.
-func run(ctx context.Context, prog *compile.Program) (driver.Rows, error) {
+func run(ctx context.Context, prog *compile.Program, binds map[string]value.Value) (driver.Rows, error) {
 	vm := interp.New(prog.Program)
 	defer vm.Close()
 
 	res := runtime.NewResult(prog.Columns)
 	sess := runtime.NewSession(res)
+	sess.SetBinds(binds)
 	if err := vm.Run(runtime.WithSession(ctx, sess)); err != nil {
 		return nil, err
 	}

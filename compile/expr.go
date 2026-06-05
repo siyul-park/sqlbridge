@@ -38,6 +38,10 @@ func compileExpr(g *gen, expr sqlparser.Expr) error {
 		return nil
 
 	case *sqlparser.SQLVal:
+		if e.Type == sqlparser.ValArg {
+			g.b.Emit(instr.CONST_GET, g.host(runtime.BindFunc(string(e.Val)))).Emit(instr.CALL)
+			return nil
+		}
 		v, err := literal(e)
 		if err != nil {
 			return err

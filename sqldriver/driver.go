@@ -100,7 +100,7 @@ func (c *connection) Begin() (driver.Tx, error) {
 }
 
 // QueryContext compiles and runs query, returning its rows.
-func (c *connection) QueryContext(ctx context.Context, query string, _ []driver.NamedValue) (driver.Rows, error) {
+func (c *connection) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
 	stmt, err := sqlparser.Parse(query)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -109,7 +109,7 @@ func (c *connection) QueryContext(ctx context.Context, query string, _ []driver.
 	if err != nil {
 		return nil, err
 	}
-	return run(ctx, prog)
+	return run(ctx, prog, namedBinds(args))
 }
 
 // statement is a prepared, compiled program.
@@ -126,18 +126,18 @@ var (
 func (s *statement) Close() error  { return nil }
 func (s *statement) NumInput() int { return -1 }
 
-func (s *statement) Exec(_ []driver.Value) (driver.Result, error) {
-	return runExec(context.Background(), s.prog)
+func (s *statement) Exec(args []driver.Value) (driver.Result, error) {
+	return runExec(context.Background(), s.prog, valueBinds(args))
 }
 
-func (s *statement) ExecContext(ctx context.Context, _ []driver.NamedValue) (driver.Result, error) {
-	return runExec(ctx, s.prog)
+func (s *statement) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
+	return runExec(ctx, s.prog, namedBinds(args))
 }
 
-func (s *statement) Query(_ []driver.Value) (driver.Rows, error) {
-	return run(context.Background(), s.prog)
+func (s *statement) Query(args []driver.Value) (driver.Rows, error) {
+	return run(context.Background(), s.prog, valueBinds(args))
 }
 
-func (s *statement) QueryContext(ctx context.Context, _ []driver.NamedValue) (driver.Rows, error) {
-	return run(ctx, s.prog)
+func (s *statement) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+	return run(ctx, s.prog, namedBinds(args))
 }

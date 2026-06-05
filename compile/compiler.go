@@ -189,6 +189,11 @@ func (c *Compiler) compileSelect(sel *sqlparser.Select) (*Program, error) {
 	g.b.Branch(instr.BR, loop)
 	g.b.Bind(done)
 
+	// DISTINCT applied before ordering and limiting.
+	if sel.Distinct != "" {
+		g.b.Emit(instr.CONST_GET, g.host(runtime.DistinctFunc())).Emit(instr.CALL).Emit(instr.DROP)
+	}
+
 	// ORDER BY applied to the materialized result.
 	if len(sel.OrderBy) > 0 {
 		desc := make([]bool, len(sel.OrderBy))
