@@ -120,13 +120,18 @@ type statement struct {
 var (
 	_ driver.Stmt             = (*statement)(nil)
 	_ driver.StmtQueryContext = (*statement)(nil)
+	_ driver.StmtExecContext  = (*statement)(nil)
 )
 
 func (s *statement) Close() error  { return nil }
 func (s *statement) NumInput() int { return -1 }
 
 func (s *statement) Exec(_ []driver.Value) (driver.Result, error) {
-	return nil, errors.New("sqldriver: Exec is not supported")
+	return runExec(context.Background(), s.prog)
+}
+
+func (s *statement) ExecContext(ctx context.Context, _ []driver.NamedValue) (driver.Result, error) {
+	return runExec(ctx, s.prog)
 }
 
 func (s *statement) Query(_ []driver.Value) (driver.Rows, error) {

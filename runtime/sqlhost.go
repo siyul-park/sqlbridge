@@ -22,9 +22,11 @@ const GlobalCount = 0
 // is reached by host functions through the run context, keeping cursors, the
 // current row, and the result accumulator off the VM's reference-counted heap.
 type Session struct {
-	cursor catalog.Cursor
-	row    catalog.Row
-	result *Result
+	cursor   catalog.Cursor
+	row      catalog.Row
+	result   *Result
+	grouper  *Grouper
+	affected int64
 }
 
 // NewSession creates a session writing into result.
@@ -214,6 +216,36 @@ func CommitFunc() *interp.HostFunction {
 			return nil, err
 		}
 		sess.result.Commit()
+		return []types.Boxed{types.BoxedNull}, nil
+	})
+}
+
+// PushKeyFunc appends an ORDER BY sort key to the current result row. Arity 1.
+// Returns NULL.
+func PushKeyFunc() *interp.HostFunction {
+	return interp.NewHostFunction(refUnaryToRef, func(vm *interp.Interpreter, params []types.Boxed) ([]types.Boxed, error) {
+		sess, err := session(vm)
+		if err != nil {
+			return nil, err
+		}
+		v, err := Unbox(vm, params[0])
+		if err != nil {
+			return nil, err
+		}
+		sess.result.PushKey(v)
+		return []types.Boxed{types.BoxedNull}, nil
+	})
+}
+
+// SortFunc orders the result by its pushed sort keys after the scan completes.
+// Arity 0. Returns NULL.
+func SortFunc(desc []bool) *interp.HostFunction {
+	return interp.NewHostFunction(refToRef, func(vm *interp.Interpreter, _ []types.Boxed) ([]types.Boxed, error) {
+		sess, err := session(vm)
+		if err != nil {
+			return nil, err
+		}
+		sess.result.Sort(desc)
 		return []types.Boxed{types.BoxedNull}, nil
 	})
 }

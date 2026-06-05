@@ -70,8 +70,42 @@ func TestDriver_Query(t *testing.T) {
 		assert.Equal(t, 3, count)
 	})
 
-	t.Run("unsupported statement surfaces an error", func(t *testing.T) {
-		_, err := db.Query("update t set a = 1")
-		assert.Error(t, err)
+}
+
+func TestDriver_Exec(t *testing.T) {
+	db := openDB(t)
+	defer db.Close()
+
+	t.Run("insert then query", func(t *testing.T) {
+		res, err := db.Exec("insert into t (a, b) values (4, 40)")
+		require.NoError(t, err)
+		n, err := res.RowsAffected()
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), n)
+
+		var count int
+		require.NoError(t, db.QueryRow("select count(a) from t").Scan(&count))
+		assert.Equal(t, 4, count)
+	})
+
+	t.Run("update matching rows", func(t *testing.T) {
+		res, err := db.Exec("update t set b = 99 where a = 1")
+		require.NoError(t, err)
+		n, err := res.RowsAffected()
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), n)
+
+		var b int
+		require.NoError(t, db.QueryRow("select b from t where a = 1").Scan(&b))
+		assert.Equal(t, 99, b)
+	})
+
+	t.Run("delete matching rows", func(t *testing.T) {
+		_, err := db.Exec("delete from t where a = 2")
+		require.NoError(t, err)
+
+		var count int
+		require.NoError(t, db.QueryRow("select count(a) from t where a = 2").Scan(&count))
+		assert.Equal(t, 0, count)
 	})
 }

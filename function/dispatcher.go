@@ -63,6 +63,20 @@ func (d *Dispatcher) Lookup(name string) (Func, bool) {
 	return fn, ok
 }
 
+// IsAggregate reports whether name is an aggregate function, which consumes a
+// whole group of rows rather than a single row.
+func IsAggregate(name string) bool {
+	switch strings.ToLower(name) {
+	case NameCount, NameSum, NameAvg, NameMin, NameMax,
+		NameStd, NameStddev, NameStddevSamp, NameStddevPop,
+		NameVariance, NameVarSamp, NameVarPop,
+		NameBitAnd, NameBitOr, NameBitXor:
+		return true
+	default:
+		return false
+	}
+}
+
 // Dispatch invokes the named function with args.
 func (d *Dispatcher) Dispatch(name string, args []value.Value) (value.Value, error) {
 	fn, ok := d.Lookup(name)

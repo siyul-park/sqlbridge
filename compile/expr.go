@@ -7,9 +7,23 @@ import (
 	"github.com/siyul-park/minivm/instr"
 	"github.com/xwb1989/sqlparser"
 
+	"github.com/siyul-park/sqlbridge/function"
 	"github.com/siyul-park/sqlbridge/runtime"
 	"github.com/siyul-park/sqlbridge/value"
 )
+
+// scalarArgs flattens a scalar function's argument list into expressions.
+func scalarArgs(exprs sqlparser.SelectExprs) ([]sqlparser.Expr, error) {
+	args := make([]sqlparser.Expr, 0, len(exprs))
+	for _, se := range exprs {
+		ae, ok := se.(*sqlparser.AliasedExpr)
+		if !ok {
+			return nil, errors.Wrapf(ErrUnsupported, "function argument %T", se)
+		}
+		args = append(args, ae.Expr)
+	}
+	return args, nil
+}
 
 // compileExpr emits bytecode that leaves the expression's value on the stack.
 // The current row is expected in the GlobalRow slot.
@@ -80,6 +94,23 @@ func compileExpr(g *gen, expr sqlparser.Expr) error {
 			return err
 		}
 		g.b.Emit(instr.CONST_GET, g.host(runtime.NotFunc())).Emit(instr.CALL)
+		return nil
+
+	case *sqlparser.FuncExpr:
+		name := e.Name.Lowered()
+		if function.IsAggregate(name) {
+			return errors.Wrapf(ErrUnsupported, "aggregate %q requires GROUP BY context", name)
+		}
+		args, err := scalarArgs(e.Exprs)
+		if err != nil {
+			return err
+		}
+		for _, a := range args {
+			if err := compileExpr(g, a); err != nil {
+				return err
+			}
+		}
+		g.b.Emit(instr.CONST_GET, g.host(runtime.DispatchFunc(g.dispatcher, name, len(args)))).Emit(instr.CALL)
 		return nil
 
 	default:

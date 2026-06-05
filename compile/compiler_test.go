@@ -86,6 +86,23 @@ func TestCompiler_Compile(t *testing.T) {
 		assert.Equal(t, "2", rows[0].Values[0].ToString())
 	})
 
+	t.Run("order by descending", func(t *testing.T) {
+		prog := compileSQL(t, cat, "select a from t order by a desc")
+		rows := run(t, prog)
+		require.Len(t, rows, 3)
+		assert.Equal(t, "3", rows[0].Values[0].ToString())
+		assert.Equal(t, "2", rows[1].Values[0].ToString())
+		assert.Equal(t, "1", rows[2].Values[0].ToString())
+	})
+
+	t.Run("order by then limit", func(t *testing.T) {
+		prog := compileSQL(t, cat, "select a from t order by a desc limit 2")
+		rows := run(t, prog)
+		require.Len(t, rows, 2)
+		assert.Equal(t, "3", rows[0].Values[0].ToString())
+		assert.Equal(t, "2", rows[1].Values[0].ToString())
+	})
+
 	t.Run("limit and offset", func(t *testing.T) {
 		prog := compileSQL(t, cat, "select a from t limit 1 offset 1")
 		rows := run(t, prog)
@@ -93,8 +110,33 @@ func TestCompiler_Compile(t *testing.T) {
 		assert.Equal(t, "2", rows[0].Values[0].ToString())
 	})
 
+	t.Run("scalar function call", func(t *testing.T) {
+		prog := compileSQL(t, cat, "select nvl(a, 100) from t where a = 2")
+		rows := run(t, prog)
+		require.Len(t, rows, 1)
+		assert.Equal(t, "2", rows[0].Values[0].ToString())
+	})
+
+	t.Run("aggregate without group", func(t *testing.T) {
+		prog := compileSQL(t, cat, "select count(a), sum(b) from t")
+		rows := run(t, prog)
+		require.Len(t, rows, 1)
+		assert.Equal(t, "3", rows[0].Values[0].ToString())
+		assert.Equal(t, "60", rows[0].Values[1].ToString())
+	})
+
+	t.Run("group by key with aggregate", func(t *testing.T) {
+		prog := compileSQL(t, cat, "select a, sum(b) from t group by a")
+		rows := run(t, prog)
+		require.Len(t, rows, 3)
+		assert.Equal(t, "1", rows[0].Values[0].ToString())
+		assert.Equal(t, "10", rows[0].Values[1].ToString())
+		assert.Equal(t, "3", rows[2].Values[0].ToString())
+		assert.Equal(t, "30", rows[2].Values[1].ToString())
+	})
+
 	t.Run("unsupported statement is rejected", func(t *testing.T) {
-		stmt, err := sqlparser.Parse("insert into t (a) values (1)")
+		stmt, err := sqlparser.Parse("create table z (id int)")
 		require.NoError(t, err)
 		_, err = New(cat).Compile(stmt)
 		assert.ErrorIs(t, err, ErrUnsupported)
