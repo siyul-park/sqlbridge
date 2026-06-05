@@ -21,23 +21,40 @@ func TestBox(t *testing.T) {
 	tests := []struct {
 		name string
 		in   value.Value
+		kind types.Kind
 	}{
-		{"int64", value.NewInt64(7)},
-		{"float64", value.NewFloat64(2.5)},
-		{"varchar", value.NewVarChar("hello")},
-		{"bool", value.True},
+		{"int64 native", value.NewInt64(7), types.KindI64},
+		{"float64 native", value.NewFloat64(2.5), types.KindF64},
+		{"bool native", value.True, types.KindI64},
+		{"varchar string ref", value.NewVarChar("hello"), types.KindRef},
+		{"varbinary typed array ref", value.NewVarBinary([]byte("bin")), types.KindRef},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b, err := Box(vm, tt.in)
 			require.NoError(t, err)
-			assert.Equal(t, types.KindRef, b.Kind())
+			assert.Equal(t, tt.kind, b.Kind())
 
 			got, err := Unbox(vm, b)
 			require.NoError(t, err)
 			assert.Equal(t, tt.in.Interface(), got.Interface())
 		})
 	}
+
+	t.Run("tuple round-trips through a native array", func(t *testing.T) {
+		in := value.NewTuple([]value.Value{value.NewInt64(1), value.NewVarChar("x")})
+		b, err := Box(vm, in)
+		require.NoError(t, err)
+		assert.Equal(t, types.KindRef, b.Kind())
+
+		got, err := Unbox(vm, b)
+		require.NoError(t, err)
+		tup, ok := got.(*value.Tuple)
+		require.True(t, ok)
+		require.Len(t, tup.Values(), 2)
+		assert.Equal(t, int64(1), tup.Values()[0].Interface())
+		assert.Equal(t, "x", tup.Values()[1].Interface())
+	})
 
 	t.Run("nil maps to canonical null", func(t *testing.T) {
 		b, err := Box(vm, nil)
@@ -50,8 +67,14 @@ func TestBox(t *testing.T) {
 	})
 }
 
+func TestConstant(t *testing.T) {
+	assert.Equal(t, types.I64(5), Constant(value.NewInt64(5)))
+	assert.Equal(t, types.F64(1.5), Constant(value.NewFloat64(1.5)))
+	assert.Equal(t, types.String("x"), Constant(value.NewVarChar("x")))
+}
+
 func TestHostFunc(t *testing.T) {
-	t.Run("dispatched from bytecode over boxed SQL values", func(t *testing.T) {
+	t.Run("dispatched from bytecode over native SQL values", func(t *testing.T) {
 		double := HostFunc(1, func(args []value.Value) (value.Value, error) {
 			n, err := value.ToInt(args[0])
 			if err != nil {
@@ -60,14 +83,13 @@ func TestHostFunc(t *testing.T) {
 			return value.NewInt64(n * 2), nil
 		})
 
-		arg := &cell{val: value.NewInt64(21)}
 		prog := program.New(
 			[]instr.Instruction{
-				instr.New(instr.CONST_GET, 0), // push the SQL argument reference
+				instr.New(instr.CONST_GET, 0), // push the native i64 argument
 				instr.New(instr.CONST_GET, 1), // push the host function
 				instr.New(instr.CALL),
 			},
-			program.WithConstants(arg, double),
+			program.WithConstants(Constant(value.NewInt64(21)), double),
 		)
 
 		vm := interp.New(prog)
@@ -77,9 +99,6 @@ func TestHostFunc(t *testing.T) {
 
 		res, err := vm.Pop()
 		require.NoError(t, err)
-
-		c, ok := res.(*cell)
-		require.True(t, ok, "expected SQL cell, got %T", res)
-		assert.Equal(t, int64(42), c.val.Interface())
+		assert.Equal(t, types.I64(42), res)
 	})
 }
