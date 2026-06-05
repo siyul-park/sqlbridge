@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/siyul-park/minivm/instr"
 	"github.com/siyul-park/minivm/interp"
+	"github.com/siyul-park/minivm/optimize"
 	"github.com/siyul-park/minivm/program"
 	"github.com/siyul-park/minivm/types"
 	"github.com/xwb1989/sqlparser"
@@ -31,6 +32,7 @@ type Program struct {
 type Compiler struct {
 	catalog    catalog.Catalog
 	dispatcher *function.Dispatcher
+	optimizer  *optimize.Optimizer
 }
 
 // Option configures a Compiler.
@@ -41,13 +43,37 @@ func WithDispatcher(d *function.Dispatcher) Option {
 	return func(c *Compiler) { c.dispatcher = d }
 }
 
+// WithOptimizer sets the bytecode optimization level (optimize.O0 disables it).
+func WithOptimizer(level optimize.Level) Option {
+	return func(c *Compiler) { c.optimizer = optimize.NewOptimizer(level) }
+}
+
 // New returns a Compiler bound to cat. By default it uses the builtin functions.
+// Bytecode optimization is opt-in via WithOptimizer: the current O1 passes do
+// not preserve the byte-relative branch offsets these branch-heavy programs
+// rely on, so optimization is disabled unless explicitly requested.
 func New(cat catalog.Catalog, opts ...Option) *Compiler {
-	c := &Compiler{catalog: cat, dispatcher: function.New(function.WithBuiltin())}
+	c := &Compiler{
+		catalog:    cat,
+		dispatcher: function.New(function.WithBuiltin()),
+	}
 	for _, opt := range opts {
 		opt(c)
 	}
 	return c
+}
+
+// build finalizes the emitted instructions into an optimized program.
+func (c *Compiler) build(g *gen) (*program.Program, error) {
+	insts, err := g.b.Build()
+	if err != nil {
+		return nil, err
+	}
+	prog := program.New(insts, program.WithConstants(g.consts...))
+	if c.optimizer != nil {
+		return c.optimizer.Optimize(prog)
+	}
+	return prog, nil
 }
 
 // gen holds mutable state while emitting a single program.
@@ -181,13 +207,13 @@ func (c *Compiler) compileSelect(sel *sqlparser.Select) (*Program, error) {
 		g.b.Emit(instr.CONST_GET, g.host(runtime.LimitFunc(offset, count))).Emit(instr.CALL).Emit(instr.DROP)
 	}
 
-	insts, err := g.b.Build()
+	prog, err := c.build(g)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Program{
-		Program: program.New(insts, program.WithConstants(g.consts...)),
+		Program: prog,
 		Columns: columns,
 		Star:    star,
 		Globals: runtime.GlobalCount,
@@ -260,13 +286,13 @@ func (c *Compiler) compileAggregate(sel *sqlparser.Select, tbl catalog.Table) (*
 		g.b.Emit(instr.CONST_GET, g.host(runtime.LimitFunc(offset, count))).Emit(instr.CALL).Emit(instr.DROP)
 	}
 
-	insts, err := g.b.Build()
+	prog, err := c.build(g)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Program{
-		Program: program.New(insts, program.WithConstants(g.consts...)),
+		Program: prog,
 		Columns: columns,
 		Globals: runtime.GlobalCount,
 	}, nil

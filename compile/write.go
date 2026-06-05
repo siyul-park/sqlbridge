@@ -3,7 +3,6 @@ package compile
 import (
 	"github.com/pkg/errors"
 	"github.com/siyul-park/minivm/instr"
-	"github.com/siyul-park/minivm/program"
 	"github.com/xwb1989/sqlparser"
 
 	"github.com/siyul-park/sqlbridge/catalog"
@@ -144,12 +143,12 @@ func scanLoop(g *gen, tbl catalog.Table, where *sqlparser.Where, body func() err
 
 // program finalizes the builder into a write Program.
 func (c *Compiler) program(g *gen) (*Program, error) {
-	insts, err := g.b.Build()
+	prog, err := c.build(g)
 	if err != nil {
 		return nil, err
 	}
 	return &Program{
-		Program: program.New(insts, program.WithConstants(g.consts...)),
+		Program: prog,
 		Globals: runtime.GlobalCount,
 	}, nil
 }
