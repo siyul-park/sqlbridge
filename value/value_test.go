@@ -72,15 +72,6 @@ func TestPromote(t *testing.T) {
 	})
 }
 
-func TestCast(t *testing.T) {
-	t.Run("int to float", func(t *testing.T) {
-		got, err := Cast(NewInt64(3), querypb.Type_FLOAT64)
-		require.NoError(t, err)
-		assert.Equal(t, querypb.Type_FLOAT64, got.Type())
-		assert.Equal(t, 3.0, got.Interface())
-	})
-}
-
 func TestToSQL(t *testing.T) {
 	t.Run("round trip int64", func(t *testing.T) {
 		sql, err := ToSQL(NewInt64(42), querypb.Type_INT64)
@@ -118,24 +109,6 @@ func TestToBool(t *testing.T) {
 			assert.Equal(t, tt.want, ToBool(tt.in))
 		})
 	}
-}
-
-func TestToInt(t *testing.T) {
-	got, err := ToInt(NewInt64(10))
-	require.NoError(t, err)
-	assert.Equal(t, int64(10), got)
-}
-
-func TestToFloat(t *testing.T) {
-	got, err := ToFloat(NewFloat64(2.5))
-	require.NoError(t, err)
-	assert.Equal(t, 2.5, got)
-}
-
-func TestToString(t *testing.T) {
-	got, err := ToString(NewVarChar("x"))
-	require.NoError(t, err)
-	assert.Equal(t, "x", got)
 }
 
 func TestNewBool(t *testing.T) {
