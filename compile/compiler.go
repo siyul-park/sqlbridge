@@ -286,7 +286,29 @@ func (c *Compiler) compileAggregate(sel *sqlparser.Select, tbl catalog.Table) (*
 	g.b.Branch(instr.BR, loop)
 	g.b.Bind(done)
 
-	g.b.Emit(instr.CONST_GET, g.host(runtime.GroupFinalizeFunc())).Emit(instr.CALL).Emit(instr.DROP)
+	if sel.Having == nil {
+		g.b.Emit(instr.CONST_GET, g.host(runtime.GroupFinalizeFunc())).Emit(instr.CALL).Emit(instr.DROP)
+	} else {
+		// Second pass: scan the aggregated group rows and apply HAVING, whose
+		// aggregate expressions are rewritten to reference the output columns.
+		g.b.Emit(instr.CONST_GET, g.host(runtime.GroupCursorFunc())).Emit(instr.CALL).Emit(instr.DROP)
+		having := rewriteHaving(sel.Having.Expr)
+		emit := g.host(runtime.EmitStarFunc())
+
+		loop2 := g.b.Label()
+		done2 := g.b.Label()
+		g.b.Bind(loop2)
+		g.b.Emit(instr.CONST_GET, g.host(runtime.NextFunc())).Emit(instr.CALL).Emit(instr.I32_EQZ)
+		g.b.Branch(instr.BR_IF, done2)
+		if err := compileExpr(g, having); err != nil {
+			return nil, err
+		}
+		g.b.Emit(instr.CONST_GET, g.host(runtime.TruthyFunc())).Emit(instr.CALL).Emit(instr.I32_EQZ)
+		g.b.Branch(instr.BR_IF, loop2)
+		g.b.Emit(instr.CONST_GET, emit).Emit(instr.CALL).Emit(instr.DROP)
+		g.b.Branch(instr.BR, loop2)
+		g.b.Bind(done2)
+	}
 
 	if sel.Limit != nil {
 		offset, count, err := limitBounds(sel.Limit)
@@ -306,6 +328,33 @@ func (c *Compiler) compileAggregate(sel *sqlparser.Select, tbl catalog.Table) (*
 		Columns: columns,
 		Globals: runtime.GlobalCount,
 	}, nil
+}
+
+// rewriteHaving rewrites a HAVING predicate so its aggregate calls reference the
+// already-computed output columns (named by their expression text), letting the
+// second-pass filter evaluate it as a plain row predicate.
+func rewriteHaving(expr sqlparser.Expr) sqlparser.Expr {
+	switch e := expr.(type) {
+	case *sqlparser.FuncExpr:
+		if function.IsAggregate(e.Name.Lowered()) {
+			return &sqlparser.ColName{Name: sqlparser.NewColIdent(sqlparser.String(e))}
+		}
+		return e
+	case *sqlparser.AndExpr:
+		return &sqlparser.AndExpr{Left: rewriteHaving(e.Left), Right: rewriteHaving(e.Right)}
+	case *sqlparser.OrExpr:
+		return &sqlparser.OrExpr{Left: rewriteHaving(e.Left), Right: rewriteHaving(e.Right)}
+	case *sqlparser.NotExpr:
+		return &sqlparser.NotExpr{Expr: rewriteHaving(e.Expr)}
+	case *sqlparser.ParenExpr:
+		return &sqlparser.ParenExpr{Expr: rewriteHaving(e.Expr)}
+	case *sqlparser.ComparisonExpr:
+		return &sqlparser.ComparisonExpr{Operator: e.Operator, Left: rewriteHaving(e.Left), Right: rewriteHaving(e.Right)}
+	case *sqlparser.BinaryExpr:
+		return &sqlparser.BinaryExpr{Operator: e.Operator, Left: rewriteHaving(e.Left), Right: rewriteHaving(e.Right)}
+	default:
+		return expr
+	}
 }
 
 // isAggregateQuery reports whether the select list or a GROUP BY clause require

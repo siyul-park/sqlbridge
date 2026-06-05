@@ -68,6 +68,10 @@ Case-insensitive registry keyed by lowercased name. `WithFunction` registers; `W
 - Every source file has a colocated `_test.go`; tests use `testify`. Run with `-race`.
 - Adding an operator/expression = a new host function in `runtime/` plus its emission in `compile/`. Unsupported constructs return `compile.ErrUnsupported`.
 
+## Supported SQL
+
+`SELECT` (projection, `*`, aliases), `WHERE` (comparisons, `AND`/`OR`/`NOT`), arithmetic and bitwise operators, scalar functions, aggregates with `GROUP BY` and `HAVING`, `ORDER BY`, `LIMIT`/`OFFSET`, `DISTINCT`, two-table `INNER JOIN ... ON`, bind variables (`?`/`:name`), and `INSERT`/`UPDATE`/`DELETE`. `compile/*_test.go` and `sqldriver/driver_test.go` exercise each through `database/sql`.
+
 ## Not yet implemented
 
-JOIN, DISTINCT, HAVING, subqueries, bind variables/prepared parameters, and transactions return `compile.ErrUnsupported` or are absent. The minivm optimizer is incompatible with the emitted branch offsets (kept opt-in).
+OUTER/multi-table (>2) joins, subqueries, correlated predicates, `UNION`, window functions, and transactions return `compile.ErrUnsupported` or are absent. JOIN uses a materialized cross product (nested-loop), not a hash join. The minivm optimizer is incompatible with the emitted branch offsets (kept opt-in via `WithOptimizer`); native-opcode specialization of numeric expressions (to exploit the JIT) is future work.

@@ -8,6 +8,7 @@ import (
 	"github.com/siyul-park/minivm/types"
 	"github.com/xwb1989/sqlparser"
 
+	"github.com/siyul-park/sqlbridge/catalog"
 	"github.com/siyul-park/sqlbridge/function"
 	"github.com/siyul-park/sqlbridge/value"
 )
@@ -74,9 +75,9 @@ func (g *Grouper) Row(params []value.Value) {
 	}
 }
 
-// Finalize materializes one row per group into res. An ungrouped aggregate over
-// zero rows still yields a single row (the empty group).
-func (g *Grouper) Finalize(res *Result) error {
+// groupValues computes the per-group output value rows. An ungrouped aggregate
+// over zero rows still yields a single row (the empty group).
+func (g *Grouper) groupValues() ([][]value.Value, error) {
 	if len(g.order) == 0 && g.spec.GroupCount == 0 {
 		g.buckets[""] = &bucket{
 			slotVals: make([]value.Value, len(g.spec.Slots)),
@@ -85,25 +86,61 @@ func (g *Grouper) Finalize(res *Result) error {
 		}
 		g.order = append(g.order, "")
 	}
+
+	out := make([][]value.Value, 0, len(g.order))
 	for _, key := range g.order {
 		b := g.buckets[key]
-		out := make([]value.Value, len(g.spec.Slots))
+		row := make([]value.Value, len(g.spec.Slots))
 		for i, slot := range g.spec.Slots {
 			if !slot.Aggregate {
-				out[i] = b.slotVals[i]
+				row[i] = b.slotVals[i]
 				continue
 			}
 			v, err := g.spec.Dispatcher.Dispatch(slot.Name, b.aggArgs[i])
 			if err != nil {
-				return err
+				return nil, err
 			}
-			out[i] = v
+			row[i] = v
 		}
-		if err := res.appendValues(g.spec.Columns, out); err != nil {
+		out = append(out, row)
+	}
+	return out, nil
+}
+
+// Finalize materializes one row per group into res.
+func (g *Grouper) Finalize(res *Result) error {
+	rows, err := g.groupValues()
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if err := res.appendValues(g.spec.Columns, row); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// Cursor exposes the group rows as a scannable cursor, used to apply a HAVING
+// filter over the aggregated rows in a second pass.
+func (g *Grouper) Cursor() (catalog.Cursor, error) {
+	groups, err := g.groupValues()
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]catalog.Row, len(groups))
+	for i, vals := range groups {
+		row := catalog.Row{Columns: g.spec.Columns}
+		for _, v := range vals {
+			sv, err := toSQL(v)
+			if err != nil {
+				return nil, err
+			}
+			row.Values = append(row.Values, sv)
+		}
+		rows[i] = row
+	}
+	return catalog.NewInMemoryCursor(rows), nil
 }
 
 // hashValues builds a canonical identity key from a tuple of values.
@@ -158,6 +195,23 @@ func GroupRowFunc(arity int) *interp.HostFunction {
 			}
 		}
 		sess.grouper.Row(args)
+		return []types.Boxed{types.BoxedNull}, nil
+	})
+}
+
+// GroupCursorFunc replaces the session cursor with the aggregated group rows so
+// a HAVING filter can be applied in a second scan. Arity 0. Returns NULL.
+func GroupCursorFunc() *interp.HostFunction {
+	return interp.NewHostFunction(refToRef, func(vm *interp.Interpreter, _ []types.Boxed) ([]types.Boxed, error) {
+		sess, err := session(vm)
+		if err != nil {
+			return nil, err
+		}
+		cur, err := sess.grouper.Cursor()
+		if err != nil {
+			return nil, err
+		}
+		sess.cursor = cur
 		return []types.Boxed{types.BoxedNull}, nil
 	})
 }

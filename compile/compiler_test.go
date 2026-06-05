@@ -150,6 +150,16 @@ func TestCompiler_Compile(t *testing.T) {
 		assert.Equal(t, "30", rows[2].Values[1].ToString())
 	})
 
+	t.Run("group by with having", func(t *testing.T) {
+		dups := catalog.NewInMemoryTable([]catalog.Row{intRow(1, 10), intRow(1, 10), intRow(2, 20)})
+		dcat := catalog.NewInMemoryCatalog(map[string]catalog.Table{"t": dups})
+		prog := compileSQL(t, dcat, "select a, count(b) from t group by a having count(b) > 1")
+		rows := run(t, prog)
+		require.Len(t, rows, 1)
+		assert.Equal(t, "1", rows[0].Values[0].ToString())
+		assert.Equal(t, "2", rows[0].Values[1].ToString())
+	})
+
 	t.Run("inner join with on predicate", func(t *testing.T) {
 		left := catalog.NewInMemoryTable([]catalog.Row{
 			{Columns: []*sqlparser.ColName{qcol("l", "id")}, Values: []sqltypes.Value{sqltypes.NewInt64(1)}},
