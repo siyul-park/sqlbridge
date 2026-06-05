@@ -113,14 +113,19 @@ func (c *Compiler) Compile(stmt sqlparser.Statement) (*Program, error) {
 }
 
 func (c *Compiler) compileSelect(sel *sqlparser.Select) (*Program, error) {
-	tbl, err := resolveTable(c.catalog, sel.From)
+	openFn, onPred, single, err := c.resolveScan(sel.From)
 	if err != nil {
 		return nil, err
 	}
 
 	if isAggregateQuery(sel.SelectExprs, sel.GroupBy) {
-		return c.compileAggregate(sel, tbl)
+		if single == nil {
+			return nil, errors.Wrap(ErrUnsupported, "aggregate over join")
+		}
+		return c.compileAggregate(sel, single)
 	}
+
+	pred := wherePredicate(sel.Where, onPred)
 
 	star, columns, exprs, err := projection(sel.SelectExprs)
 	if err != nil {
@@ -129,7 +134,7 @@ func (c *Compiler) compileSelect(sel *sqlparser.Select) (*Program, error) {
 
 	g := &gen{cat: c.catalog, dispatcher: c.dispatcher, b: NewBuilder()}
 
-	open := g.host(runtime.OpenFunc(tbl))
+	open := g.host(openFn)
 	next := g.host(runtime.NextFunc())
 
 	// open the scan cursor into the session
@@ -143,9 +148,9 @@ func (c *Compiler) compileSelect(sel *sqlparser.Select) (*Program, error) {
 	g.b.Emit(instr.CONST_GET, next).Emit(instr.CALL).Emit(instr.I32_EQZ)
 	g.b.Branch(instr.BR_IF, done)
 
-	// WHERE: skip the row when the predicate is not true.
-	if sel.Where != nil {
-		if err := compileExpr(g, sel.Where.Expr); err != nil {
+	// WHERE (and any join predicate): skip the row when it is not true.
+	if pred != nil {
+		if err := compileExpr(g, pred); err != nil {
 			return nil, err
 		}
 		truthy := g.host(runtime.TruthyFunc())
@@ -363,6 +368,69 @@ func aggregateArg(fe *sqlparser.FuncExpr) (sqlparser.Expr, error) {
 	default:
 		return nil, errors.Wrapf(ErrUnsupported, "aggregate argument %T", fe.Exprs[0])
 	}
+}
+
+// resolveScan resolves a FROM clause to the host open function that seeds the
+// scan cursor. For a single table it also returns that table (for the aggregate
+// path); for an INNER JOIN it returns the join's ON predicate to fold into WHERE.
+func (c *Compiler) resolveScan(from sqlparser.TableExprs) (*interp.HostFunction, sqlparser.Expr, catalog.Table, error) {
+	if len(from) != 1 {
+		return nil, nil, nil, errors.Wrap(ErrUnsupported, "exactly one table expression is supported")
+	}
+	switch te := from[0].(type) {
+	case *sqlparser.AliasedTableExpr:
+		tbl, err := tableOf(c.catalog, te)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return runtime.OpenFunc(tbl), nil, tbl, nil
+	case *sqlparser.JoinTableExpr:
+		left, err := joinTable(c.catalog, te.LeftExpr)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		right, err := joinTable(c.catalog, te.RightExpr)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return runtime.OpenJoinFunc(left, right), te.Condition.On, nil, nil
+	default:
+		return nil, nil, nil, errors.Wrapf(ErrUnsupported, "from %T", from[0])
+	}
+}
+
+// joinTable resolves one side of a join, which must be a plain table reference.
+func joinTable(cat catalog.Catalog, te sqlparser.TableExpr) (catalog.Table, error) {
+	aliased, ok := te.(*sqlparser.AliasedTableExpr)
+	if !ok {
+		return nil, errors.Wrapf(ErrUnsupported, "join operand %T", te)
+	}
+	return tableOf(cat, aliased)
+}
+
+// tableOf resolves an aliased table expression to a catalog table.
+func tableOf(cat catalog.Catalog, aliased *sqlparser.AliasedTableExpr) (catalog.Table, error) {
+	name, ok := aliased.Expr.(sqlparser.TableName)
+	if !ok {
+		return nil, errors.Wrapf(ErrUnsupported, "table expr %T", aliased.Expr)
+	}
+	return cat.Table(name.Name.String())
+}
+
+// wherePredicate combines an optional WHERE clause with an optional join
+// predicate into a single expression (or nil).
+func wherePredicate(where *sqlparser.Where, on sqlparser.Expr) sqlparser.Expr {
+	var pred sqlparser.Expr
+	if where != nil {
+		pred = where.Expr
+	}
+	if on == nil {
+		return pred
+	}
+	if pred == nil {
+		return on
+	}
+	return &sqlparser.AndExpr{Left: pred, Right: on}
 }
 
 // resolveTable extracts the single source table from a FROM clause.

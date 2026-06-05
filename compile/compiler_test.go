@@ -18,6 +18,13 @@ func col(name string) *sqlparser.ColName {
 	return &sqlparser.ColName{Name: sqlparser.NewColIdent(name)}
 }
 
+func qcol(qualifier, name string) *sqlparser.ColName {
+	return &sqlparser.ColName{
+		Name:      sqlparser.NewColIdent(name),
+		Qualifier: sqlparser.TableName{Name: sqlparser.NewTableIdent(qualifier)},
+	}
+}
+
 func intRow(a, b int64) catalog.Row {
 	return catalog.Row{
 		Columns: []*sqlparser.ColName{col("a"), col("b")},
@@ -141,6 +148,22 @@ func TestCompiler_Compile(t *testing.T) {
 		assert.Equal(t, "10", rows[0].Values[1].ToString())
 		assert.Equal(t, "3", rows[2].Values[0].ToString())
 		assert.Equal(t, "30", rows[2].Values[1].ToString())
+	})
+
+	t.Run("inner join with on predicate", func(t *testing.T) {
+		left := catalog.NewInMemoryTable([]catalog.Row{
+			{Columns: []*sqlparser.ColName{qcol("l", "id")}, Values: []sqltypes.Value{sqltypes.NewInt64(1)}},
+			{Columns: []*sqlparser.ColName{qcol("l", "id")}, Values: []sqltypes.Value{sqltypes.NewInt64(2)}},
+		})
+		right := catalog.NewInMemoryTable([]catalog.Row{
+			{Columns: []*sqlparser.ColName{qcol("r", "id")}, Values: []sqltypes.Value{sqltypes.NewInt64(2)}},
+			{Columns: []*sqlparser.ColName{qcol("r", "id")}, Values: []sqltypes.Value{sqltypes.NewInt64(3)}},
+		})
+		jcat := catalog.NewInMemoryCatalog(map[string]catalog.Table{"l": left, "r": right})
+		prog := compileSQL(t, jcat, "select l.id from l join r on l.id = r.id")
+		rows := run(t, prog)
+		require.Len(t, rows, 1)
+		assert.Equal(t, "2", rows[0].Values[0].ToString())
 	})
 
 	t.Run("unsupported statement is rejected", func(t *testing.T) {
